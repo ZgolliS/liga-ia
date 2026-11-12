@@ -3,11 +3,16 @@
 1. football-data.org : équipes, effectifs, matchs, classement
    (nécessite FOOTBALL_DATA_TOKEN, ta clé, dans l'environnement)
 2. flux RSS : actus et rumeurs, reliées aux joueurs et équipes de la base
+3. l'IA lit les nouveaux articles et en extrait les rumeurs (si LLM_API_KEY est défini)
 """
+
+import os
 
 from foot.db import DEFAULT_DB_PATH, connect
 from foot.football_data import FootballDataClient, sync_liga
+from foot.llm import LLMClient
 from foot.news import sync_news
+from foot.rumors import extract_claims
 
 
 def main() -> None:
@@ -16,6 +21,11 @@ def main() -> None:
     stats = sync_liga(conn, FootballDataClient())
     print("Collecte des flux RSS…")
     stats += sync_news(conn)
+    if os.environ.get("LLM_API_KEY"):
+        print("Extraction des rumeurs par l'IA…")
+        stats += extract_claims(conn, LLMClient())
+    else:
+        print("LLM_API_KEY absente : extraction des rumeurs ignorée")
     print(f"Collecte terminée -> {DEFAULT_DB_PATH}")
     for line, count in sorted(stats.items()):
         print(f"  {line:<28} {count}")

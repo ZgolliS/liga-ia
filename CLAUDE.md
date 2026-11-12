@@ -35,6 +35,13 @@ argent (tables) -> or (vues `v_*`).
   unique (entraîneurs inclus : Diego vs Giuliano Simeone), commence par une majuscule
   ("conjunto blanco" != Antonio Blanco) et n'est pas un prénom ("David Pérez" != Jonathan
   David). Toujours contrôler un échantillon réel après une modification.
+- `llm.py` : client IA au format compatible OpenAI (Gemini par défaut, gratuit ;
+  Mistral/Groq possibles via LLM_BASE_URL/LLM_MODELS). Réessaie sur 429/503 puis bascule
+  sur le modèle suivant. Clé : `LLM_API_KEY` (`proxy-injected` dans la session cloud).
+- `rumors.py` : l'IA lit les articles par paquets de 10 (quota), extrait les rumeurs
+  (table `claims`, réponse brute dans `raw_payloads`), `rumor_board` regroupe et note.
+  Type de source : officiel -> ✅, agent -> fiable, opinion -> ignorée.
+  `uv run python -m foot.rumors [N]` affiche le tableau des rumeurs.
 - `sync.py` : collecte -> `data/foot.db` (`uv run python -m foot.sync`),
   nécessite `FOOTBALL_DATA_TOKEN`. Dans la session cloud, la clé est injectée par le
   proxy : utiliser `FOOTBALL_DATA_TOKEN=proxy-injected`.

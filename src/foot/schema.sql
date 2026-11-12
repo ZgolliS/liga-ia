@@ -127,6 +127,27 @@ CREATE TABLE IF NOT EXISTS news_mentions (
     PRIMARY KEY (news_url, entity_type, entity_id)
 );
 
+-- Rumeurs extraites des articles par l'IA : "tel article dit que tel joueur va dans tel club".
+CREATE TABLE IF NOT EXISTS claims (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    news_url        TEXT NOT NULL REFERENCES news(url),
+    player_name     TEXT NOT NULL,
+    player_id       INTEGER REFERENCES players(id),  -- si c'est un joueur de Liga reconnu
+    from_team       TEXT NOT NULL DEFAULT '',
+    to_team         TEXT NOT NULL DEFAULT '',
+    stance          TEXT NOT NULL CHECK (stance IN ('affirme', 'dément', 'neutre')),
+    original_source TEXT,                -- à qui l'article attribue l'info (journaliste…)
+    source_type     TEXT,                -- officiel, agent, journaliste, opinion
+    UNIQUE (news_url, player_name, to_team)
+);
+
+-- Articles déjà lus par l'IA : on ne les renvoie jamais (quota gratuit limité).
+CREATE TABLE IF NOT EXISTS news_processing (
+    news_url      TEXT PRIMARY KEY REFERENCES news(url),
+    processed_at  TEXT NOT NULL,
+    model         TEXT
+);
+
 -- ============================ 🥇 OR ============================
 -- Vues prêtes pour le site et le chatbot.
 CREATE VIEW IF NOT EXISTS v_player_cards AS

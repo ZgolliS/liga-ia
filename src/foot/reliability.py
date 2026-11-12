@@ -102,7 +102,7 @@ def assess(reports: list[Report]) -> Verdict:
         label = Label.RUMEUR
     else:
         label = Label.INTOX
-        if not reliable_affirm:
+        if affirm and not reliable_affirm:
             reasons.insert(0, "aucune source fiable ne l'affirme")
     return Verdict(label, round(score, 2), reasons)
 
