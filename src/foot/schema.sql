@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS teams (
     name        TEXT NOT NULL,
     short_name  TEXT,
     tla         TEXT,                       -- code à 3 lettres, ex : 'FCB'
+    coach_name  TEXT,                       -- entraîneur actuel
     crest_url   TEXT,                       -- logo
     updated_at  TEXT NOT NULL
 );
@@ -115,7 +116,15 @@ CREATE TABLE IF NOT EXISTS news (
     title         TEXT NOT NULL,
     summary       TEXT,
     published_at  TEXT,
-    fetched_at    TEXT NOT NULL
+    updated_at    TEXT NOT NULL
+);
+
+-- Qui est cité dans quel article (joueur ou équipe de Liga).
+CREATE TABLE IF NOT EXISTS news_mentions (
+    news_url     TEXT NOT NULL REFERENCES news(url),
+    entity_type  TEXT NOT NULL CHECK (entity_type IN ('player', 'team')),
+    entity_id    INTEGER NOT NULL,
+    PRIMARY KEY (news_url, entity_type, entity_id)
 );
 
 -- ============================ 🥇 OR ============================

@@ -76,4 +76,4 @@ def test_no_report_raises() -> None:
     ],
 )
 def test_identify_source_from_url(url: str, tier: Tier) -> None:
-    assert identify(url)[1] is tier
+    assert identify(url).tier is tier

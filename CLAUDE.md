@@ -28,6 +28,13 @@ argent (tables) -> or (vues `v_*`).
 - `football_data.py` : connecteur football-data.org (plan gratuit : équipes, effectifs,
   matchs, classement ; PAS les cartons). Client limité à 10 requêtes/min ; fonctions
   `load_*` testées sur `tests/fixtures/fd_*.json`. `sync_liga` est transactionnel.
+- `news.py` : actus via RSS (Marca pour l'instant ; autres médias bloqués par le réseau
+  de la session). Titre + résumé <= 300 car. + lien, jamais l'article complet.
+- `entities.py` : détection des joueurs/équipes cités. Règles apprises sur données réelles :
+  nom complet partagé -> ignoré (2 "Raúl") ; nom de famille seul seulement s'il est
+  unique (entraîneurs inclus : Diego vs Giuliano Simeone), commence par une majuscule
+  ("conjunto blanco" != Antonio Blanco) et n'est pas un prénom ("David Pérez" != Jonathan
+  David). Toujours contrôler un échantillon réel après une modification.
 - `sync.py` : collecte -> `data/foot.db` (`uv run python -m foot.sync`),
   nécessite `FOOTBALL_DATA_TOKEN`. Dans la session cloud, la clé est injectée par le
   proxy : utiliser `FOOTBALL_DATA_TOKEN=proxy-injected`.

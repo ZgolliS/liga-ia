@@ -28,6 +28,8 @@ def test_load_teams_and_squads(conn) -> None:
         "WHERE p.name = 'Unai Simón'"
     ).fetchone()
     assert row["team"] == "Athletic Club"
+    coaches = conn.execute("SELECT coach_name FROM teams ORDER BY name").fetchall()
+    assert all(r["coach_name"] for r in coaches)  # l'entraîneur est enregistré
 
 
 def test_second_load_is_unchanged(conn) -> None:

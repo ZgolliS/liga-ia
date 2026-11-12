@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Exemple de flux (inventé pour les tests)</title>
+    <item>
+      <title><![CDATA[El Barça estudia una oferta por Alejandro Balde]]></title>
+      <description><![CDATA[<p>El club azulgrana analiza la situaci&amp;oacute;n del lateral&amp;nbsp;y su futuro. &#039;Es clave&#039;</p>&nbsp; Leer …]]></description>
+      <link>https://www.marca.com/futbol/barcelona/2026/11/12/exemple-balde.html</link>
+      <pubDate>Thu, 12 Nov 2026 11:08:00 +0100</pubDate>
+    </item>
+    <item>
+      <title><![CDATA[Francisco renueva con el Betis]]></title>
+      <description><![CDATA[Acuerdo cerrado hasta 2029.]]></description>
+      <link>https://blog-fichajes.example/francisco-betis</link>
+      <pubDate>Wed, 11 Nov 2026 09:00:00 +0000</pubDate>
+    </item>
+    <item>
+      <title><![CDATA[Article sans lien]]></title>
+    </item>
+  </channel>
+</rss>

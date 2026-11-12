@@ -7,9 +7,20 @@ simplement "inconnue" (niveau 4). Tu pourras compléter la liste toi-même.
 
 from __future__ import annotations
 
+import sqlite3
+from dataclasses import dataclass
 from urllib.parse import urlparse
 
+from foot.db import upsert
 from foot.reliability import Tier
+
+
+@dataclass(frozen=True)
+class SourceInfo:
+    id: str  # le domaine, ex : 'marca.com'
+    name: str
+    tier: Tier
+
 
 # domaine -> (nom affiché, niveau)
 SOURCES: dict[str, tuple[str, Tier]] = {
@@ -33,10 +44,16 @@ SOURCES: dict[str, tuple[str, Tier]] = {
 }
 
 
-def identify(url: str) -> tuple[str, Tier]:
+def identify(url: str) -> SourceInfo:
     """Retrouve la source d'un article à partir de son URL (sous-domaines compris)."""
     host = (urlparse(url).hostname or "").lower()
-    for domain, info in SOURCES.items():
+    for domain, (name, tier) in SOURCES.items():
         if host == domain or host.endswith("." + domain):
-            return info
-    return (host or "source inconnue", Tier.INCONNUE)
+            return SourceInfo(domain, name, tier)
+    host = host.removeprefix("www.") or "inconnue"
+    return SourceInfo(host, host, Tier.INCONNUE)
+
+
+def save_source(conn: sqlite3.Connection, source: SourceInfo) -> None:
+    upsert(conn, "sources", {"id": source.id},
+           {"name": source.name, "domain": source.id, "tier": int(source.tier)})

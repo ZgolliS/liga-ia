@@ -48,7 +48,8 @@ def load_teams(conn: sqlite3.Connection, payload: dict[str, Any]) -> Counter:
     """Équipes + effectifs (joueurs)."""
     stats: Counter = Counter()
     for t in payload["teams"]:
-        team_id, status = _upsert_team(conn, t)
+        coach = (t.get("coach") or {}).get("name")
+        team_id, status = _upsert_team(conn, t, coach_name=coach)
         stats[f"équipes {status}"] += 1
         for p in t.get("squad", []):
             _, status = upsert(conn, "players", {"fd_id": p["id"]}, {
@@ -119,12 +120,15 @@ def sync_liga(conn: sqlite3.Connection, client: FootballDataClient) -> Counter:
     return stats
 
 
-def _upsert_team(conn: sqlite3.Connection, t: dict[str, Any]) -> tuple[int, UpsertStatus]:
+def _upsert_team(
+    conn: sqlite3.Connection, t: dict[str, Any], **extra: Any
+) -> tuple[int, UpsertStatus]:
     team_id, status = upsert(conn, "teams", {"fd_id": t["id"]}, {
         "name": t["name"],
         "short_name": t.get("shortName"),
         "tla": t.get("tla"),
         "crest_url": t.get("crest"),
+        **extra,  # ex : coach_name, présent seulement dans la liste des équipes
     })
     assert team_id is not None
     return team_id, status
