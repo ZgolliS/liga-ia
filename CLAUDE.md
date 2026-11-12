@@ -25,6 +25,12 @@ argent (tables) -> or (vues `v_*`).
 - `reliability.py` : note de fiabilité ✅🟢🟡🔴 selon niveau des sources,
   sources indépendantes et démentis ; toujours une explication
 - `sources.py` : référentiel des médias (niveaux indicatifs ; inconnu = niveau 4)
+- `football_data.py` : connecteur football-data.org (plan gratuit : équipes, effectifs,
+  matchs, classement ; PAS les cartons). Client limité à 10 requêtes/min ; fonctions
+  `load_*` testées sur `tests/fixtures/fd_*.json`. `sync_liga` est transactionnel.
+- `sync.py` : collecte -> `data/foot.db` (`uv run python -m foot.sync`),
+  nécessite `FOOTBALL_DATA_TOKEN`. Dans la session cloud, la clé est injectée par le
+  proxy : utiliser `FOOTBALL_DATA_TOKEN=proxy-injected`.
 - Règle : uniquement des infos professionnelles publiques sur les joueurs (RGPD),
   pas d'articles complets (titre, résumé court, lien), pas de scraping interdit.
 

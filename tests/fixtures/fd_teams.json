@@ -1,0 +1,139 @@
+{
+ "teams": [
+  {
+   "area": {
+    "id": 2224,
+    "name": "Spain",
+    "code": "ESP",
+    "flag": "https://crests.football-data.org/760.svg"
+   },
+   "id": 77,
+   "name": "Athletic Club",
+   "shortName": "Athletic",
+   "tla": "ATH",
+   "crest": "https://crests.football-data.org/77.png",
+   "address": "Ibaigane, Alameda Mazarredo, 23 Bilbao 48009",
+   "website": "http://www.athletic-club.eus",
+   "founded": 1898,
+   "clubColors": "Red / White / Black",
+   "venue": "San Mamés",
+   "runningCompetitions": [
+    {
+     "id": 2014,
+     "name": "Primera Division",
+     "code": "PD",
+     "type": "LEAGUE",
+     "emblem": "https://crests.football-data.org/laliga.png"
+    }
+   ],
+   "coach": {
+    "id": 111241,
+    "firstName": "Edin",
+    "lastName": "Terzić",
+    "name": "Edin Terzić",
+    "dateOfBirth": "1982-10-30",
+    "nationality": "Germany",
+    "contract": {
+     "start": null,
+     "until": null
+    }
+   },
+   "squad": [
+    {
+     "id": 32570,
+     "name": "Unai Simón",
+     "position": "Goalkeeper",
+     "dateOfBirth": "1997-06-11",
+     "nationality": "Spain"
+    },
+    {
+     "id": 203459,
+     "name": "Álex Padilla",
+     "position": "Goalkeeper",
+     "dateOfBirth": "2003-09-01",
+     "nationality": "Spain"
+    },
+    {
+     "id": 7884,
+     "name": "Aymeric Laporte",
+     "position": "Defence",
+     "dateOfBirth": "1994-05-27",
+     "nationality": "Spain"
+    }
+   ],
+   "staff": [],
+   "lastUpdated": "2022-03-06T09:31:27Z"
+  },
+  {
+   "area": {
+    "id": 2224,
+    "name": "Spain",
+    "code": "ESP",
+    "flag": "https://crests.football-data.org/760.svg"
+   },
+   "id": 78,
+   "name": "Club Atlético de Madrid",
+   "shortName": "Atleti",
+   "tla": "ATL",
+   "crest": "https://crests.football-data.org/78.png",
+   "address": "Paseo Virgen del Puerto, 67 Madrid 28005",
+   "website": "http://www.clubatleticodemadrid.com",
+   "founded": 1903,
+   "clubColors": "Red / White / Blue",
+   "venue": "Estadio Wanda Metropolitano",
+   "runningCompetitions": [
+    {
+     "id": 2014,
+     "name": "Primera Division",
+     "code": "PD",
+     "type": "LEAGUE",
+     "emblem": "https://crests.football-data.org/laliga.png"
+    },
+    {
+     "id": 2001,
+     "name": "UEFA Champions League",
+     "code": "CL",
+     "type": "CUP",
+     "emblem": "https://crests.football-data.org/CL.png"
+    }
+   ],
+   "coach": {
+    "id": 132,
+    "firstName": "Diego",
+    "lastName": "Simeone",
+    "name": "Diego Simeone",
+    "dateOfBirth": "1970-04-28",
+    "nationality": "Argentina",
+    "contract": {
+     "start": null,
+     "until": null
+    }
+   },
+   "squad": [
+    {
+     "id": 120,
+     "name": "Jan Oblak",
+     "position": "Goalkeeper",
+     "dateOfBirth": "1993-01-07",
+     "nationality": "Slovenia"
+    },
+    {
+     "id": 46554,
+     "name": "Juan Musso",
+     "position": "Goalkeeper",
+     "dateOfBirth": "1994-05-06",
+     "nationality": "Argentina"
+    },
+    {
+     "id": 279062,
+     "name": "Salvi Esquivel",
+     "position": "Goalkeeper",
+     "dateOfBirth": "2005-09-30",
+     "nationality": "Spain"
+    }
+   ],
+   "staff": [],
+   "lastUpdated": "2026-07-04T11:58:34Z"
+  }
+ ]
+}
