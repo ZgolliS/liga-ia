@@ -25,7 +25,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from foot import queries
 from foot.chatbot import Chatbot
-from foot.db import connect
+from foot.db import connect, connect_readonly
 from foot.llm import LLMClient
 
 log = logging.getLogger("liga")
@@ -55,6 +55,7 @@ class AppState:
     embedder = None
     news_store = None
     collector = None
+    mirror = None  # mode Cloud : copie locale de la base déposée par le job
     lock = threading.Lock()
 
 
@@ -62,14 +63,23 @@ state = AppState()
 
 
 def reload_news_index() -> None:
-    """(Re)construit l'index de recherche des actus. Appelé après chaque collecte."""
+    """(Re)charge l'index de recherche des actus. Appelé après chaque collecte.
+    En mode Cloud, l'index préparé par le job est simplement lu."""
     if state.embedder is None:
         return
     from foot.news_index import build_news_index
+    from rag.store import VectorStore
 
+    if state.mirror and (state.mirror.workdir / "index_news" / "chunks.json").exists():
+        store = VectorStore.load(state.mirror.workdir / "index_news")
+        with state.lock:
+            state.news_store = store
+        log.info("Index des actus chargé : %d articles", len(store.chunks))
+        return
     conn = connect(DB_PATH)
     try:
-        store = build_news_index(conn, state.embedder)
+        store = build_news_index(conn, state.embedder, index_dir=None if state.mirror else
+                                 Path("data/index_news"))
         with state.lock:
             state.news_store = store
         log.info("Index des actus : %d articles", len(store.chunks))
@@ -79,8 +89,21 @@ def reload_news_index() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    global DB_PATH
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
-    connect(DB_PATH).close()  # crée la base et le schéma si besoin
+    if os.environ.get("STORAGE_URL"):  # mode Cloud : la base vient du stockage (bucket)
+        from foot.storage import StorageMirror, open_storage
+
+        state.mirror = StorageMirror(open_storage(os.environ["STORAGE_URL"]),
+                                     Path(os.environ.get("WORK_DIR", "/tmp/liga")),
+                                     on_update=reload_news_index)
+        DB_PATH = state.mirror.db_path
+        try:
+            state.mirror.refresh()
+        except Exception:
+            log.exception("Stockage injoignable au démarrage")
+    if not DB_PATH.exists():
+        connect(DB_PATH).close()  # base vide avec le schéma, en attendant les données
     if os.environ.get("LLM_API_KEY"):
         state.llm = LLMClient()
     if os.environ.get("ENABLE_SEMANTIC_SEARCH", "1") == "1":
@@ -93,9 +116,14 @@ async def lifespan(app: FastAPI):
 
         state.collector = Collector(DB_PATH, llm=state.llm, on_news_updated=reload_news_index)
         state.collector.start()
+    if state.mirror:
+        state.mirror.start(every_s=float(os.environ.get("REFRESH_SECONDS", "60")))
     yield
     if state.collector:
         state.collector.stop()
+    if state.mirror:
+        state.mirror.stop()
+        state.mirror = None
 
 
 app = FastAPI(title="Liga IA", lifespan=lifespan, docs_url=None, redoc_url=None)
@@ -127,7 +155,9 @@ templates.env.filters["label_class"] = lambda label: LABEL_CLASS.get((label or "
 # ------------------------------------------------------------ accès à la base
 
 def get_db():
-    conn = connect(DB_PATH, apply_schema=False)
+    if state.mirror:
+        state.mirror.refresh_if_stale(float(os.environ.get("REFRESH_SECONDS", "60")))
+    conn = connect_readonly(DB_PATH) if state.mirror else connect(DB_PATH, apply_schema=False)
     try:
         yield conn
     finally:
@@ -272,4 +302,5 @@ def status(db=Depends(get_db)):
               for t in ("teams", "players", "matches", "news", "claims")}
     return {"donnees": counts, "chatbot": state.llm is not None,
             "recherche_semantique": state.news_store is not None,
-            "collecte": state.collector.status() if state.collector else "désactivée"}
+            "collecte": state.collector.status() if state.collector else "désactivée",
+            "version_base": state.mirror.current if state.mirror else None}

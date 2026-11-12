@@ -94,12 +94,15 @@ class Collector:
     def collect_news(self) -> int:
         from foot.news import sync_news
         from foot.rumors import extract_claims
+        from foot.storage import prune_raw
 
         conn = connect(self.db_path)
         try:
             stats = sync_news(conn)
             if self.llm is not None:
                 stats += extract_claims(conn, self.llm)
+            with conn:
+                stats["bronze purgé"] += prune_raw(conn)  # la base ne grossit pas sans fin
             log.info("Actus : %s", dict(stats))
         finally:
             conn.close()

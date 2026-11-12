@@ -96,3 +96,30 @@ def test_liga_interval_depends_on_calendar() -> None:
     kickoff = datetime.fromisoformat(upcoming)
     assert liga_interval(conn, kickoff.replace(year=kickoff.year - 1)) == IDLE_INTERVAL
     assert liga_interval(conn, kickoff) == LIVE_INTERVAL  # autour du coup d'envoi
+
+
+def test_cloud_mode_reads_database_from_storage(tmp_path, monkeypatch) -> None:
+    """Mode Cloud Run : le job dépose la base dans le bucket, le site la lit."""
+    from foot.storage import LocalStorage, snapshot_db
+
+    bucket = LocalStorage(tmp_path / "bucket")
+    job_db = connect(tmp_path / "job.db")
+    sync_liga(job_db, FakeClient())
+    bucket.upload(snapshot_db(job_db, tmp_path / "snap.db"), "foot.db")
+
+    monkeypatch.setattr(web, "DB_PATH", web.DB_PATH)  # restauré après le test
+    monkeypatch.setenv("STORAGE_URL", f"file://{tmp_path / 'bucket'}")
+    monkeypatch.setenv("WORK_DIR", str(tmp_path / "site"))
+    monkeypatch.setenv("ENABLE_SEMANTIC_SEARCH", "0")
+    monkeypatch.delenv("LLM_API_KEY", raising=False)
+    with TestClient(web.app) as c:
+        assert "Real Madrid" in c.get("/classement").text
+        version = c.get("/api/status").json()["version_base"]
+        assert version is not None
+
+        # Le job dépose une nouvelle version : le site la récupère.
+        job_db.execute("UPDATE teams SET short_name = 'Los Blancos' WHERE short_name = 'Real Madrid'")
+        job_db.commit()
+        bucket.upload(snapshot_db(job_db, tmp_path / "snap2.db"), "foot.db")
+        assert web.state.mirror.refresh() is True
+        assert "Los Blancos" in c.get("/classement").text

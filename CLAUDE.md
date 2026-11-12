@@ -8,7 +8,10 @@ Projet d'apprentissage construit étape par étape ; le README décrit le produi
 - Python 3.12+, dépendances avec `uv` ; SQLite (mode WAL) ; FastAPI + Jinja2 ; pytest, ruff
 - IA : API compatible OpenAI (`foot/llm.py`), Gemini gratuit par défaut
 - Embeddings locaux : fastembed, modèle multilingue (`rag/embeddings.py`)
-- Déploiement : image Docker (`Dockerfile`, port 7860) sur Hugging Face Spaces
+- Déploiement : Google Cloud (offre gratuite), script `deploy/gcp.sh` lancé depuis Cloud
+  Shell. Une image (`Dockerfile`) pour 2 usages : Cloud Run Job `liga-collecte`
+  (`python -m foot.job`, lancé toutes les 15 min par Cloud Scheduler) qui dépose la base
+  et l'index dans un bucket ; Cloud Run Service `liga-ia` qui les lit (lecture seule).
 
 ## Commandes
 - Installer : `uv sync` · Tests : `uv run pytest` · Lint : `uv run ruff check .`
@@ -38,7 +41,11 @@ Médaillon : bronze (`raw_payloads` : réponses brutes des API, RSS et IA) -> ar
 - `chatbot.py` : 6 outils en lecture seule (pas de SQL libre), 5 tours max, liens non
   fournis par les outils retirés (`remove_invented_links`).
 - `news_index.py` : recherche des actus par le sens via `src/rag`.
-- `scheduler.py` : matchs toutes les 2 min autour d'un match sinon 1 h ; actus 15 min.
+- `scheduler.py` : `liga_interval` (2 min autour d'un match, sinon 1 h) ; `Collector` =
+  collecte intégrée au site, pour le mode local uniquement (`ENABLE_COLLECTOR=1`).
+- `job.py` : job Cloud Run (récupère la base, collecte, purge le bronze, index, renvoie).
+- `storage.py` : `STORAGE_URL` gs:// ou dossier local ; `snapshot_db` ; `prune_raw`
+  (3 dernières réponses brutes par source, sauf l'IA) ; `StorageMirror` pour le site.
 - `web/` : `app.py` (pages, `/api/chat` limité par visiteur et par jour, `/api/status`),
   `templates/`, `static/` (CSS clair/sombre, `chat.js` avec rendu Markdown échappé).
 

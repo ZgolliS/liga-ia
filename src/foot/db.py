@@ -45,6 +45,13 @@ def connect(path: Path | str = DEFAULT_DB_PATH, apply_schema: bool = True) -> sq
     return conn
 
 
+def connect_readonly(path: Path | str) -> sqlite3.Connection:
+    """Ouvre une copie de la base en lecture seule (le site sur Cloud Run)."""
+    conn = sqlite3.connect(f"file:{path}?immutable=1", uri=True, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
 def save_raw(conn: sqlite3.Connection, source: str, endpoint: str, payload: Any) -> int:
     """🥉 Bronze : garde une copie exacte de la réponse d'une API."""
     cur = conn.execute(
