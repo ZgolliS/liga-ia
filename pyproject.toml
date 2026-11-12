@@ -1,7 +1,7 @@
 [project]
-name = "rag-chatbot"
+name = "liga-ia"
 version = "0.1.0"
-description = "Chatbot RAG sur des documents, propulsé par Claude"
+description = "Liga espagnole : données, mercato vérifié par IA et assistant conversationnel"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.162.5",

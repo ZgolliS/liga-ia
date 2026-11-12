@@ -1,0 +1,28 @@
+# CD : quand les tests passent sur main, on envoie le code au Space Hugging Face,
+# qui reconstruit l'image Docker et redémarre le site.
+# À configurer une fois dans GitHub (Settings > Secrets and variables > Actions) :
+#   - secret   HF_TOKEN : jeton Hugging Face avec droit d'écriture
+#   - variable HF_SPACE : nom du Space, ex : "ton-pseudo/liga-ia"
+name: Déploiement
+
+on:
+  workflow_run:
+    workflows: [Tests]
+    types: [completed]
+    branches: [main]
+
+jobs:
+  deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && vars.HF_SPACE != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+      - name: Envoi vers Hugging Face Spaces
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_SPACE: ${{ vars.HF_SPACE }}
+        run: |
+          git push --force "https://user:${HF_TOKEN}@huggingface.co/spaces/${HF_SPACE}" HEAD:main

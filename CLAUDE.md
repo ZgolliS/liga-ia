@@ -1,71 +1,53 @@
-# RAG Chatbot
+# Liga IA
 
-Chatbot qui répond à des questions à partir de documents (PDF, Markdown, texte),
-en citant ses sources. Projet d'apprentissage : construit étape par étape.
+Site sur la Liga espagnole : classement, matchs, effectifs, mercato dont chaque rumeur
+est notée (✅🟢🟡🔴) selon ses sources, et un assistant IA qui répond aux visiteurs.
+Projet d'apprentissage construit étape par étape ; le README décrit le produit.
 
 ## Stack
-- Python 3.12+, gestion des dépendances avec `uv`
-- LLM : Claude via le SDK officiel `anthropic` (modèle `claude-opus-5-5`)
-- Tests : `pytest`
-
-## Architecture (`src/rag/`)
-- `ingest.py` : chargement des documents (`.txt`, `.md`, `.pdf`) et découpage en chunks
-- `embeddings.py` : vectorisation (protocole `Embedder`, modèle local fastembed multilingue)
-- `store.py` : base vectorielle numpy (recherche cosinus, sauvegarde sur disque)
-- `index.py` : CLI `build` / `search`
-- (à venir) `generate.py` : génération de la réponse avec Claude
-- (à venir) `api.py` : API FastAPI + interface web
-
-## Projet foot Liga (`src/foot/`)
-Site + chatbot sur la Liga : résultats, cartons, blessures, mercato, avec
-fiabilité des rumeurs. Architecture médaillon : bronze (`raw_payloads`) ->
-argent (tables) -> or (vues `v_*`).
-- `schema.sql` : schéma SQLite (compatible PostgreSQL à quelques détails près)
-- `db.py` : connexion, `save_raw` (bronze), `upsert` (ajout / mise à jour / inchangé)
-- `reliability.py` : note de fiabilité ✅🟢🟡🔴 selon niveau des sources,
-  sources indépendantes et démentis ; toujours une explication
-- `sources.py` : référentiel des médias (niveaux indicatifs ; inconnu = niveau 4)
-- `football_data.py` : connecteur football-data.org (plan gratuit : équipes, effectifs,
-  matchs, classement ; PAS les cartons). Client limité à 10 requêtes/min ; fonctions
-  `load_*` testées sur `tests/fixtures/fd_*.json`. `sync_liga` est transactionnel.
-- `news.py` : actus via RSS (Marca pour l'instant ; autres médias bloqués par le réseau
-  de la session). Titre + résumé <= 300 car. + lien, jamais l'article complet.
-- `entities.py` : détection des joueurs/équipes cités. Règles apprises sur données réelles :
-  nom complet partagé -> ignoré (2 "Raúl") ; nom de famille seul seulement s'il est
-  unique (entraîneurs inclus : Diego vs Giuliano Simeone), commence par une majuscule
-  ("conjunto blanco" != Antonio Blanco) et n'est pas un prénom ("David Pérez" != Jonathan
-  David). Toujours contrôler un échantillon réel après une modification.
-- `llm.py` : client IA au format compatible OpenAI (Gemini par défaut, gratuit ;
-  Mistral/Groq possibles via LLM_BASE_URL/LLM_MODELS). Réessaie sur 429/503 puis bascule
-  sur le modèle suivant. Clé : `LLM_API_KEY` (`proxy-injected` dans la session cloud).
-- `rumors.py` : l'IA lit les articles par paquets de 10 (quota), extrait les rumeurs
-  (table `claims`, réponse brute dans `raw_payloads`), `rumor_board` regroupe et note.
-  Type de source : officiel -> ✅, agent -> fiable, opinion -> ignorée.
-  `uv run python -m foot.rumors [N]` affiche le tableau des rumeurs.
-- `sync.py` : collecte -> `data/foot.db` (`uv run python -m foot.sync`),
-  nécessite `FOOTBALL_DATA_TOKEN`. Dans la session cloud, la clé est injectée par le
-  proxy : utiliser `FOOTBALL_DATA_TOKEN=proxy-injected`.
-- Règle : uniquement des infos professionnelles publiques sur les joueurs (RGPD),
-  pas d'articles complets (titre, résumé court, lien), pas de scraping interdit.
-
-Les documents sources vont dans `data/docs/`, l'index dans `data/index/` (non versionné),
-le modèle téléchargé dans `.cache/models/` (non versionné).
+- Python 3.12+, dépendances avec `uv` ; SQLite (mode WAL) ; FastAPI + Jinja2 ; pytest, ruff
+- IA : API compatible OpenAI (`foot/llm.py`), Gemini gratuit par défaut
+- Embeddings locaux : fastembed, modèle multilingue (`rag/embeddings.py`)
+- Déploiement : image Docker (`Dockerfile`, port 7860) sur Hugging Face Spaces
 
 ## Commandes
-- Installer : `uv sync`
-- Tests : `uv run pytest`
-- Lint : `uv run ruff check .`
-- Construire l'index : `uv run python -m rag.index build`
-- Tester la recherche : `uv run python -m rag.index search "ma question"`
+- Installer : `uv sync` · Tests : `uv run pytest` · Lint : `uv run ruff check .`
+- Site en local : `ENABLE_COLLECTOR=1 uv run uvicorn foot.web.app:app --reload`
+- Collecte manuelle : `uv run python -m foot.sync` · Rumeurs : `uv run python -m foot.rumors [N]`
+- Clés : `FOOTBALL_DATA_TOKEN`, `LLM_API_KEY`. Dans la session cloud Claude Code, elles sont
+  injectées par le proxy : passer la valeur `proxy-injected`.
 
-## Points d'attention
-- Le modèle d'embeddings lit au plus ~128 tokens : garder les chunks <= 400 caractères
-  (`CHUNK_MAX_CHARS` dans `index.py`). Changer de modèle impose de reconstruire l'index.
-- Les tests utilisent `FakeEmbedder` (`tests/conftest.py`) : pas de téléchargement.
+## Architecture
+Médaillon : bronze (`raw_payloads` : réponses brutes des API, RSS et IA) -> argent (tables)
+-> or (vues `v_*`). Schéma : `src/foot/schema.sql` (ajout de colonne = recréer la base locale).
+
+`src/foot/`
+- `db.py` : `connect`, `save_raw`, `upsert` (ajouté / mis à jour / inchangé)
+- `football_data.py` : plan gratuit = équipes, effectifs, entraîneurs, matchs, classement
+  (PAS cartons ni blessures). 10 requêtes/min. `sync_liga` transactionnel.
+- `news.py` : RSS (Marca). Titre + résumé <= 300 car. + lien, jamais l'article complet.
+- `entities.py` : joueurs/équipes cités. Règles issues de vraies erreurs : nom partagé ->
+  ignoré ; nom de famille seul seulement s'il est unique (entraîneurs inclus), avec
+  majuscule, et pas un prénom. Toujours contrôler un échantillon réel après modification.
+- `llm.py` : réessaie sur 429/503 puis modèle suivant. Renvoyer les messages de l'IA TELS
+  QUELS (Gemini y met une `thought_signature` obligatoire).
+- `rumors.py` : extraction par paquets de 10 articles (quota), jamais deux fois le même ;
+  type de source officiel -> ✅, agent -> fiable, opinion -> ignorée ; `rumor_board` note.
+- `reliability.py`, `sources.py` : notation et référentiel des médias (niveaux indicatifs).
+- `queries.py` : lectures partagées par le site et le chatbot.
+- `chatbot.py` : 6 outils en lecture seule (pas de SQL libre), 5 tours max, liens non
+  fournis par les outils retirés (`remove_invented_links`).
+- `news_index.py` : recherche des actus par le sens via `src/rag`.
+- `scheduler.py` : matchs toutes les 2 min autour d'un match sinon 1 h ; actus 15 min.
+- `web/` : `app.py` (pages, `/api/chat` limité par visiteur et par jour, `/api/status`),
+  `templates/`, `static/` (CSS clair/sombre, `chat.js` avec rendu Markdown échappé).
+
+`src/rag/` : moteur RAG des débuts (découpage, embeddings, base vectorielle numpy).
+Le modèle lit ~128 tokens max : textes courts (chunks <= 400 caractères).
 
 ## Conventions
-- Code et noms en anglais, commentaires et docs en français.
-- Type hints partout, dataclasses pour les objets métier.
-- Chaque nouvelle fonction a au moins un test dans `tests/`.
-- Ne jamais écrire de clé API dans le code : `ANTHROPIC_API_KEY` vient de l'environnement.
-- Les tests ne doivent pas appeler l'API Claude (utiliser des faux clients).
+- Code et noms en anglais, commentaires, docs et interface en français.
+- Type hints, dataclasses ; chaque fonction a au moins un test ; les tests n'appellent
+  jamais d'API réelle (faux clients, `FakeEmbedder`, `httpx.MockTransport`).
+- Jamais de clé dans le code ni dans git.
+- Données joueurs : uniquement professionnelles et publiques (RGPD) ; pas de scraping interdit.
