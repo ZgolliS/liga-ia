@@ -16,6 +16,18 @@ en citant ses sources. Projet d'apprentissage : construit étape par étape.
 - (à venir) `generate.py` : génération de la réponse avec Claude
 - (à venir) `api.py` : API FastAPI + interface web
 
+## Projet foot Liga (`src/foot/`)
+Site + chatbot sur la Liga : résultats, cartons, blessures, mercato, avec
+fiabilité des rumeurs. Architecture médaillon : bronze (`raw_payloads`) ->
+argent (tables) -> or (vues `v_*`).
+- `schema.sql` : schéma SQLite (compatible PostgreSQL à quelques détails près)
+- `db.py` : connexion, `save_raw` (bronze), `upsert` (ajout / mise à jour / inchangé)
+- `reliability.py` : note de fiabilité ✅🟢🟡🔴 selon niveau des sources,
+  sources indépendantes et démentis ; toujours une explication
+- `sources.py` : référentiel des médias (niveaux indicatifs ; inconnu = niveau 4)
+- Règle : uniquement des infos professionnelles publiques sur les joueurs (RGPD),
+  pas d'articles complets (titre, résumé court, lien), pas de scraping interdit.
+
 Les documents sources vont dans `data/docs/`, l'index dans `data/index/` (non versionné),
 le modèle téléchargé dans `.cache/models/` (non versionné).
 
