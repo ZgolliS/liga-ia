@@ -82,3 +82,23 @@ def test_refresh_if_stale_runs_in_background(tmp_path) -> None:
     before = mirror.current
     mirror.refresh_if_stale(max_age_s=60)  # vérifié à l'instant : ne fait rien
     assert mirror.current == before
+
+
+def test_refresh_if_stale_on_a_freshly_booted_machine(tmp_path, monkeypatch) -> None:
+    # Bug réel trouvé par la CI : sur une machine démarrée depuis moins d'une minute,
+    # la toute première vérification n'avait jamais lieu.
+    import foot.storage as storage_module
+    from foot.storage import StorageMirror
+
+    monkeypatch.setattr(storage_module.time, "monotonic", lambda: 5.0)  # démarrée il y a 5 s
+    bucket = LocalStorage(tmp_path / "bucket")
+    src = tmp_path / "v1.db"
+    src.write_bytes(b"v1")
+    bucket.upload(src, "foot.db")
+    mirror = StorageMirror(bucket, tmp_path / "site")
+    mirror.refresh_if_stale(max_age_s=60)
+    for _ in range(200):
+        if mirror.current:
+            break
+        storage_module.threading.Event().wait(0.01)
+    assert mirror.current is not None

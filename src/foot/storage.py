@@ -134,7 +134,7 @@ class StorageMirror:
         self.on_update = on_update
         self.current: str | None = None  # version de la base actuellement chargée
         self._stop = threading.Event()
-        self._last_check = 0.0
+        self._last_check: float | None = None  # None = jamais vérifié
         self._busy = threading.Lock()
 
     @property
@@ -158,7 +158,11 @@ class StorageMirror:
     def refresh_if_stale(self, max_age_s: float = 60) -> None:
         """Appelé à chaque visite : si la dernière vérification date, on en relance une
         en arrière-plan (sur Cloud Run, le processeur dort entre deux visites)."""
-        if time.monotonic() - self._last_check < max_age_s or not self._busy.acquire(False):
+        # (monotonic() compte depuis le démarrage de la machine : sur une machine qui vient
+        # de démarrer, il peut valoir moins de 60 s, d'où le None plutôt que 0.)
+        recent = (self._last_check is not None
+                  and time.monotonic() - self._last_check < max_age_s)
+        if recent or not self._busy.acquire(False):
             return
 
         def run() -> None:
