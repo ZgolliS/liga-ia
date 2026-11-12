@@ -79,6 +79,7 @@ def reload_news_index() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
     connect(DB_PATH).close()  # crée la base et le schéma si besoin
     if os.environ.get("LLM_API_KEY"):
         state.llm = LLMClient()
