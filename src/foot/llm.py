@@ -48,19 +48,30 @@ class LLMClient:
         self._backoff = backoff
         self.last_model: str | None = None  # quel modèle a vraiment répondu
 
-    def chat(self, messages: list[dict[str, str]], json_mode: bool = False) -> str:
+    def chat(self, messages: list[dict[str, Any]], json_mode: bool = False) -> str:
         """Envoie la conversation, retourne le texte de la réponse."""
+        return self.chat_message(messages, json_mode=json_mode).get("content") or ""
+
+    def chat_message(self, messages: list[dict[str, Any]], tools: list[dict] | None = None,
+                     json_mode: bool = False) -> dict[str, Any]:
+        """Retourne le message complet de l'IA (texte et/ou demandes d'outils).
+
+        ⚠️ Pour continuer la conversation, renvoyer ce message TEL QUEL : Gemini y
+        cache une signature (thought_signature) et refuse un message reconstruit.
+        """
         errors = []
         for model in self.models:
             body: dict[str, Any] = {"model": model, "messages": messages}
             if json_mode:
                 body["response_format"] = {"type": "json_object"}
+            if tools:
+                body["tools"] = tools
             for attempt in range(self._retries + 1):
                 r = self._http.post(f"{self.base_url}/chat/completions",
                                     headers=self._headers, json=body)
                 if r.status_code == 200:
                     self.last_model = model
-                    return _extract_text(r.json())
+                    return _extract_message(r.json())
                 errors.append(f"{model}: HTTP {r.status_code}")
                 if r.status_code not in RETRYABLE:
                     break  # 400/401/404 : inutile de réessayer ce modèle
@@ -72,10 +83,13 @@ class LLMClient:
         return parse_json(self.chat(messages, json_mode=True))
 
 
-def _extract_text(data: Any) -> str:
+def _extract_message(data: Any) -> dict[str, Any]:
     data = data[0] if isinstance(data, list) else data  # Gemini enveloppe parfois dans [...]
     try:
-        return data["choices"][0]["message"]["content"] or ""
+        message = data["choices"][0]["message"]
+        if not isinstance(message, dict):
+            raise TypeError
+        return message
     except (KeyError, IndexError, TypeError) as exc:
         raise LLMError(f"Réponse inattendue : {str(data)[:200]}") from exc
 

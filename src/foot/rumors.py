@@ -142,6 +142,7 @@ class Rumor:
     to_team: str
     verdict: Verdict
     articles: list[dict] = field(default_factory=list)  # titre, url, date, source
+    player_id: int | None = None  # si c'est un joueur de Liga reconnu
 
 
 def rumor_board(conn: sqlite3.Connection) -> list[Rumor]:
@@ -165,6 +166,7 @@ def rumor_board(conn: sqlite3.Connection) -> list[Rumor]:
         reports = [_to_report(r) for r in group]
         board.append(Rumor(
             player=group[0]["player"], to_team=group[0]["to_team"], verdict=assess(reports),
+            player_id=group[0]["player_id"],
             articles=[{"title": r["title"], "url": r["news_url"], "date": r["published_at"],
                        "source": r["media"]} for r in group]))
     board.sort(key=lambda x: (-x.verdict.score, x.player))
