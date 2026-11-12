@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Liga IA{% endblock %} · Liga IA</title>
+  <meta name="description" content="Liga espagnole : classement, matchs, mercato avec fiabilité des rumeurs, et un assistant IA.">
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚽</text></svg>">
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap header-inner">
+      <a class="brand" href="/"><span class="brand-ball">⚽</span> Liga <strong>IA</strong></a>
+      <nav class="nav">
+        {% set path = request.url.path %}
+        <a href="/" {% if path == '/' %}aria-current="page"{% endif %}>Accueil</a>
+        <a href="/classement" {% if path.startswith('/classement') %}aria-current="page"{% endif %}>Classement</a>
+        <a href="/matchs" {% if path.startswith('/matchs') %}aria-current="page"{% endif %}>Matchs</a>
+        <a href="/mercato" {% if path.startswith('/mercato') %}aria-current="page"{% endif %}>Mercato</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <p>Données : <a href="https://www.football-data.org" rel="noopener">football-data.org</a> (matchs, classement, effectifs) et titres d'articles de médias sportifs (lien vers l'article d'origine).</p>
+      <p>Les niveaux de fiabilité des rumeurs sont calculés automatiquement à partir des sources : ils peuvent contenir des erreurs. Projet personnel, sans lien avec LaLiga ni les clubs.</p>
+    </div>
+  </footer>
+
+  {% if chat_enabled %}
+  <button class="chat-toggle" id="chat-toggle" aria-expanded="false" aria-controls="chat-panel">
+    <span aria-hidden="true">💬</span><span class="chat-toggle-label">Poser une question</span>
+  </button>
+  <section class="chat-panel" id="chat-panel" hidden aria-label="Assistant Liga IA">
+    <header class="chat-head">
+      <div><strong>Assistant Liga IA</strong><small>Répond à partir des données du site</small></div>
+      <button class="chat-close" id="chat-close" aria-label="Fermer">×</button>
+    </header>
+    <div class="chat-log" id="chat-log" aria-live="polite">
+      <div class="msg bot">Hola ! 👋 Pose-moi une question sur la Liga : classement, prochains matchs, rumeurs de mercato…</div>
+      <div class="chat-suggestions" id="chat-suggestions">
+        <button>Qui est premier de Liga ?</button>
+        <button>Quelles sont les rumeurs les plus fiables ?</button>
+        <button>Prochain match du Barça ?</button>
+      </div>
+    </div>
+    <form class="chat-form" id="chat-form">
+      <input id="chat-input" name="message" maxlength="500" autocomplete="off" placeholder="Ta question…" required>
+      <button type="submit" aria-label="Envoyer">➤</button>
+    </form>
+  </section>
+  <script src="/static/chat.js" defer></script>
+  {% endif %}
+</body>
+</html>

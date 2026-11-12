@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% from "_macros.html" import rumor_card, news_list %}
+{% block title %}Mercato{% endblock %}
+{% block content %}
+<h1 class="page-title">Mercato : rumeurs vérifiées</h1>
+<section class="card explain">
+  <p>Une IA lit les articles et en extrait les rumeurs. Chaque rumeur reçoit ensuite une note selon <strong>la fiabilité des sources</strong>, <strong>le nombre de sources indépendantes</strong> et <strong>les éventuels démentis</strong>&nbsp;:</p>
+  <ul class="legend-labels">
+    <li><span class="badge officiel">✅ Officiel</span> confirmé par le club, la ligue ou le joueur</li>
+    <li><span class="badge probable">🟢 Très probable</span> plusieurs sources fiables</li>
+    <li><span class="badge rumeur">🟡 Rumeur</span> une source fiable, pas de confirmation</li>
+    <li><span class="badge intox">🔴 Intox probable</span> sources non vérifiées ou démenti</li>
+  </ul>
+</section>
+
+<nav class="filters" aria-label="Filtrer par fiabilité">
+  <a href="/mercato" {% if not filtre %}aria-current="true"{% endif %}>Toutes</a>
+  <a href="/mercato?fiabilite=officiel" {% if filtre == 'officiel' %}aria-current="true"{% endif %}>✅ {{ counts['officiel'] }}</a>
+  <a href="/mercato?fiabilite=probable" {% if filtre == 'probable' %}aria-current="true"{% endif %}>🟢 {{ counts['probable'] }}</a>
+  <a href="/mercato?fiabilite=rumeur" {% if filtre == 'rumeur' %}aria-current="true"{% endif %}>🟡 {{ counts['rumeur'] }}</a>
+  <a href="/mercato?fiabilite=intox" {% if filtre == 'intox' %}aria-current="true"{% endif %}>🔴 {{ counts['intox'] }}</a>
+</nav>
+
+<div class="rumors">{% for r in rumors %}{{ rumor_card(r) }}{% else %}<p class="muted">Aucune rumeur dans cette catégorie.</p>{% endfor %}</div>
+
+<section class="card">
+  <h2>Dernières actus mercato</h2>
+  {{ news_list(news) }}
+</section>
+{% endblock %}

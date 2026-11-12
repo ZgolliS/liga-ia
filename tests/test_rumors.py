@@ -94,7 +94,7 @@ def test_relayed_unknown_source_counts_as_unknown(conn) -> None:
     extract_claims(conn, FakeLLM([{"rumeurs": [rumor(1, source="Un journaliste italien")]}]))
     v = rumor_board(conn)[0].verdict
     assert v.label is Label.INTOX
-    assert "Un journaliste italien (relayé par" in v.explain()  # la vraie source est citée
+    assert "Un journaliste italien, relayé par" in v.explain()  # la vraie source est citée
 
 
 def test_neutral_claims_are_not_rumors(conn) -> None:

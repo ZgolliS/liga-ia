@@ -26,13 +26,22 @@ def now_utc() -> str:
     return datetime.now(UTC).isoformat(timespec="seconds")
 
 
-def connect(path: Path | str = DEFAULT_DB_PATH) -> sqlite3.Connection:
-    """Ouvre la base (la crée si besoin) et applique le schéma."""
+def connect(path: Path | str = DEFAULT_DB_PATH, apply_schema: bool = True) -> sqlite3.Connection:
+    """Ouvre la base (la crée si besoin) et applique le schéma.
+
+    Le site ouvre une connexion par visite pendant que la collecte écrit en
+    arrière-plan : le mode WAL permet de lire pendant une écriture.
+    """
     if str(path) != ":memory:":
         Path(path).parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(path)
+    conn = sqlite3.connect(path, timeout=30, check_same_thread=False)
     conn.row_factory = sqlite3.Row  # accès aux colonnes par leur nom : row["name"]
-    conn.executescript(SCHEMA_PATH.read_text(encoding="utf-8"))
+    if str(path) != ":memory:":
+        conn.execute("PRAGMA journal_mode=WAL")
+    if apply_schema:
+        conn.executescript(SCHEMA_PATH.read_text(encoding="utf-8"))
+    else:
+        conn.execute("PRAGMA foreign_keys = ON")
     return conn
 
 

@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% from "_macros.html" import match_row %}
+{% block title %}Matchs · journée {{ journee }}{% endblock %}
+{% block content %}
+<h1 class="page-title">Matchs · journée {{ journee }}</h1>
+<nav class="pager" aria-label="Journées">
+  {% if journee > 1 %}<a href="/matchs?journee={{ journee - 1 }}">← J{{ journee - 1 }}</a>{% endif %}
+  <form method="get" action="/matchs">
+    <label for="journee" class="sr-only">Journée</label>
+    <select id="journee" name="journee" onchange="this.form.submit()">
+      {% for d in days %}<option value="{{ d }}" {% if d == journee %}selected{% endif %}>Journée {{ d }}</option>{% endfor %}
+    </select>
+  </form>
+  {% if days and journee < days[-1] %}<a href="/matchs?journee={{ journee + 1 }}">J{{ journee + 1 }} →</a>{% endif %}
+</nav>
+<section class="card">
+  <ul class="matches">{% for m in matches %}{{ match_row(m) }}{% else %}<li class="muted">Aucun match pour cette journée.</li>{% endfor %}</ul>
+  <p class="legend">Heures de Madrid.</p>
+</section>
+{% endblock %}

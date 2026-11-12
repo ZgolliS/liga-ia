@@ -186,7 +186,7 @@ def _to_report(r: sqlite3.Row) -> Report:
         tier = Tier.FIABLE    # bien informé, mais parfois intéressé
     else:
         tier = _TIER_BY_NAME.get(normalize(original), Tier.INCONNUE)
-    return Report(f"{original} (relayé par {r['media']})", tier, stance, published)
+    return Report(f"{original}, relayé par {r['media']}", tier, stance, published)
 
 
 def main() -> None:

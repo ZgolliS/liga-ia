@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% from "_macros.html" import crest, match_row, rumor_card, news_list %}
+{% block title %}{{ team.short_name or team.name }}{% endblock %}
+{% block content %}
+<header class="profile">
+  {% if team.crest %}<img class="profile-crest" src="{{ team.crest }}" alt="" width="72" height="72" onerror="this.remove()">{% endif %}
+  <div>
+    <h1>{{ team.name }}</h1>
+    <p class="muted">
+      {% if team.coach %}Entraîneur : {{ team.coach }}{% endif %}
+      {% if team.standing %} · {{ team.standing.position }}<sup>e</sup> avec {{ team.standing.points }} pts ({{ team.standing.won }}V {{ team.standing.draw }}N {{ team.standing.lost }}D){% endif %}
+    </p>
+  </div>
+</header>
+
+<div class="grid">
+  <section class="card">
+    <h2>Derniers matchs</h2>
+    <ul class="matches">{% for m in team.last_matches %}{{ match_row(m) }}{% else %}<li class="muted">—</li>{% endfor %}</ul>
+  </section>
+  <section class="card">
+    <h2>Prochains matchs</h2>
+    <ul class="matches">{% for m in team.next_matches %}{{ match_row(m) }}{% else %}<li class="muted">—</li>{% endfor %}</ul>
+  </section>
+</div>
+
+{% if team.rumors %}
+<section class="section">
+  <h2>Mercato</h2>
+  <div class="rumors">{% for r in team.rumors %}{{ rumor_card(r) }}{% endfor %}</div>
+</section>
+{% endif %}
+
+<section class="card table-scroll">
+  <h2>Effectif ({{ team.squad | length }} joueurs)</h2>
+  <table class="table">
+    <thead><tr><th>Joueur</th><th>Poste</th><th>Âge</th><th>Nationalité</th></tr></thead>
+    <tbody>
+    {% for p in team.squad %}
+      <tr><td><a href="/joueur/{{ p.id }}">{{ p.name }}</a></td><td>{{ p.position | position }}</td><td>{{ p.age or '—' }}</td><td>{{ p.nationality or '—' }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section class="card">
+  <h2>Actus</h2>
+  {{ news_list(team.news) }}
+</section>
+{% endblock %}

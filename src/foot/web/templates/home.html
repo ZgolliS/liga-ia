@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% from "_macros.html" import crest, match_row, rumor_card, news_list %}
+{% block title %}Accueil{% endblock %}
+{% block content %}
+<section class="hero">
+  <h1>Toute la Liga, <span>vérifiée</span>.</h1>
+  <p>Classement, résultats, et un mercato où chaque rumeur reçoit une note de fiabilité selon ses sources&nbsp;: ✅ officiel, 🟢 très probable, 🟡 rumeur, 🔴 intox probable.</p>
+</section>
+
+{% if empty %}
+<p class="notice">⏳ Les données sont en cours de chargement. Reviens dans une minute&nbsp;!</p>
+{% endif %}
+
+{% if live %}
+<section class="card">
+  <h2><span class="live-dot">En direct</span></h2>
+  <ul class="matches">{% for m in live %}{{ match_row(m) }}{% endfor %}</ul>
+</section>
+{% endif %}
+
+<div class="grid">
+  <section class="card">
+    <h2>Classement <a class="more" href="/classement">Voir tout →</a></h2>
+    <table class="table compact">
+      <thead><tr><th>#</th><th>Équipe</th><th>J</th><th>Pts</th></tr></thead>
+      <tbody>
+      {% for s in standings %}
+        <tr><td>{{ s.position }}</td><td><a class="team-cell" href="/equipe/{{ s.team_id }}">{{ crest(s.crest) }} {{ s.team }}</a></td><td>{{ s.played }}</td><td class="pts">{{ s.points }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section class="card">
+    <h2>Derniers résultats <a class="more" href="/matchs">Matchs →</a></h2>
+    <ul class="matches">{% for m in last %}{{ match_row(m) }}{% endfor %}</ul>
+  </section>
+
+  <section class="card">
+    <h2>Prochains matchs</h2>
+    <ul class="matches">{% for m in upcoming %}{{ match_row(m) }}{% else %}<li class="muted">Aucun match programmé.</li>{% endfor %}</ul>
+  </section>
+</div>
+
+<section class="section">
+  <h2>Mercato : les rumeurs du moment <a class="more" href="/mercato">Tout le mercato →</a></h2>
+  <div class="rumors">{% for r in rumors %}{{ rumor_card(r) }}{% else %}<p class="muted">Pas encore de rumeur analysée.</p>{% endfor %}</div>
+</section>
+
+<section class="card">
+  <h2>Dernières actus</h2>
+  {{ news_list(news) }}
+</section>
+{% endblock %}
