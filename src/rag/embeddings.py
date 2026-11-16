@@ -38,9 +38,14 @@ def normalize(vectors: np.ndarray) -> np.ndarray:
 class FastEmbedEmbedder:
     """Modèle local exécuté avec fastembed (ONNX). Téléchargé au premier usage."""
 
-    def __init__(self, model_name: str = DEFAULT_MODEL, cache_dir: str = DEFAULT_CACHE_DIR):
+    def __init__(self, model_name: str = DEFAULT_MODEL, cache_dir: str = DEFAULT_CACHE_DIR,
+                 batch_size: int = 16):
         self.model_name = model_name
         self._cache_dir = cache_dir
+        # Petits paquets = moins de mémoire. Mesuré sur 243 articles : 1 186 Mo de pic
+        # avec 256 (réglage par défaut de fastembed) contre 699 Mo avec 16 ; or le job
+        # Cloud Run dispose de 1 Go. Les vecteurs obtenus sont identiques.
+        self.batch_size = batch_size
         self._model = None  # chargement paresseux : seulement quand on en a besoin
 
     def embed(self, texts: list[str]) -> np.ndarray:
@@ -50,4 +55,4 @@ class FastEmbedEmbedder:
             from fastembed import TextEmbedding
 
             self._model = TextEmbedding(self.model_name, cache_dir=self._cache_dir)
-        return normalize(np.array(list(self._model.embed(texts))))
+        return normalize(np.array(list(self._model.embed(texts, batch_size=self.batch_size))))

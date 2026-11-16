@@ -63,3 +63,20 @@ def test_search_with_other_model_than_index_raises(tmp_path: Path, embedder) -> 
 
     with pytest.raises(ValueError, match="modèle"):
         store.search("football", OtherEmbedder())
+
+
+def test_fastembed_uses_small_batches() -> None:
+    # Cas réel : avec des paquets de 256, le job dépassait 1 Go de mémoire sur Cloud Run.
+    from rag.embeddings import FastEmbedEmbedder
+
+    received = {}
+
+    class FakeModel:
+        def embed(self, texts, batch_size):
+            received["batch_size"] = batch_size
+            return [np.ones(4) for _ in texts]
+
+    emb = FastEmbedEmbedder()
+    emb._model = FakeModel()  # pas de téléchargement
+    assert emb.embed(["a", "b"]).shape == (2, 4)
+    assert received["batch_size"] == 16
