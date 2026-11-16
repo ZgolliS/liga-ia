@@ -27,7 +27,7 @@ class FootballDataClient:
     """Client HTTP minimal, qui respecte la limite du plan gratuit (10 requêtes/minute)."""
 
     def __init__(self, token: str | None = None, min_interval: float = 6.5):
-        token = token or os.environ.get("FOOTBALL_DATA_TOKEN")
+        token = (token or os.environ.get("FOOTBALL_DATA_TOKEN") or "").strip()  # sans espaces
         if not token:
             raise RuntimeError("Définis la variable d'environnement FOOTBALL_DATA_TOKEN")
         self._http = httpx.Client(base_url=BASE_URL, headers={"X-Auth-Token": token}, timeout=30)

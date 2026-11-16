@@ -54,7 +54,11 @@ def run_job(storage: Storage, workdir: Path, football_client=None, llm=None, emb
         if football_client is not None and liga_due(conn, now):
             from foot.football_data import sync_liga
 
-            stats += sync_liga(conn, football_client)
+            try:
+                stats += sync_liga(conn, football_client)
+            except Exception:  # ex : clé refusée (400/401) -> on fait quand même les actus
+                log.exception("Collecte des matchs en échec : on continue avec les actus")
+                stats["matchs en erreur"] += 1
         stats += sync_news(conn)
         if llm is not None:
             stats += extract_claims(conn, llm)
@@ -99,6 +103,8 @@ def main() -> None:
     stats = run_job(open_storage(url), Path(os.environ.get("WORK_DIR", "/tmp/liga")),
                     football, llm, embedder)
     log.info("Job terminé : %s", dict(stats))
+    if stats["matchs en erreur"]:
+        raise SystemExit(1)  # données publiées, mais l'échec reste visible dans Cloud Run
 
 
 if __name__ == "__main__":

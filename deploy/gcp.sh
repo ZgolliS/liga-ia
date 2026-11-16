@@ -63,27 +63,55 @@ if ! gcloud storage buckets describe "gs://$BUCKET" >/dev/null 2>&1; then
 fi
 
 step "4/8 Clés API dans Secret Manager (saisies masquées, jamais affichées)"
+# Teste une clé auprès du service concerné ; affiche le code HTTP (200 = clé acceptée).
+key_status() {
+  local name="$1" value="$2"
+  case "$name" in
+    FOOTBALL_DATA_TOKEN)
+      curl -s -o /dev/null -w '%{http_code}' -H "X-Auth-Token: $value" \
+        https://api.football-data.org/v4/competitions/PD ;;
+    LLM_API_KEY)
+      curl -s -o /dev/null -w '%{http_code}' -H "x-goog-api-key: $value" \
+        https://generativelanguage.googleapis.com/v1beta/models ;;
+  esac
+}
 for name in FOOTBALL_DATA_TOKEN LLM_API_KEY; do
   if ! gcloud secrets describe "$name" >/dev/null 2>&1; then
     gcloud secrets create "$name" --replication-policy automatic >/dev/null
   fi
-  # Le coffre-fort peut exister mais être vide (saisie vide lors d'un essai précédent) :
-  # on vérifie qu'il contient bien une clé active.
-  if gcloud secrets versions list "$name" --filter "state=ENABLED" --limit 1 \
-       --format "value(name)" | grep -q .; then
-    echo "  $name : déjà enregistrée"
-  else
+  # La clé déjà enregistrée (s'il y en a une) est-elle acceptée par le service ?
+  value="$(gcloud secrets versions access latest --secret "$name" 2>/dev/null || true)"
+  if [[ -n "$value" ]]; then
+    code="$(key_status "$name" "$value")"
+    if [[ "$code" == "200" ]]; then
+      echo "  $name : déjà enregistrée et acceptée ✅"
+      unset value
+      continue
+    fi
+    echo "  ⚠️ $name : la clé enregistrée est refusée (code $code). Colle la bonne clé."
+  fi
+  for attempt in 1 2 3; do
     value=""
     while [[ -z "$value" ]]; do
       read -rsp "  Colle ta clé $name puis Entrée (rien ne s'affiche, c'est normal) : " value
       echo
+      value="${value//[[:space:]]/}"  # retire espaces et retours à la ligne collés par erreur
       if [[ -z "$value" ]]; then
         echo "  ⚠️ Saisie vide : recommence (clic droit > Coller, puis Entrée)."
       fi
     done
-    printf '%s' "$value" | gcloud secrets versions add "$name" --data-file=- >/dev/null
-    unset value
-    echo "  $name : enregistrée ✅"
+    code="$(key_status "$name" "$value")"
+    if [[ "$code" == "200" ]]; then
+      break
+    fi
+    echo "  ⚠️ Clé refusée par le service (code $code), essai $attempt sur 3."
+  done
+  printf '%s' "$value" | gcloud secrets versions add "$name" --data-file=- >/dev/null
+  unset value
+  if [[ "$code" == "200" ]]; then
+    echo "  $name : enregistrée et acceptée ✅"
+  else
+    echo "  ⚠️ $name enregistrée MAIS refusée : vérifie-la, puis relance le script."
   fi
 done
 
@@ -114,7 +142,10 @@ gcloud run jobs deploy "$JOB" --image "$IMAGE" --region "$REGION" \
   --memory 1Gi --cpu 1 --task-timeout 30m --max-retries 0
 if ! gcloud storage objects describe "gs://$BUCKET/foot.db" >/dev/null 2>&1; then
   echo "  Premier remplissage : l'IA analyse tous les articles (5 à 10 min)…"
-  gcloud run jobs execute "$JOB" --region "$REGION" --wait
+  if ! gcloud run jobs execute "$JOB" --region "$REGION" --wait; then
+    echo "  ⚠️ Le premier remplissage a signalé une erreur : on continue la mise en ligne."
+    echo "     Journal : Cloud Run > Jobs > $JOB > Journaux. Nouvel essai auto dans 15 min."
+  fi
 fi
 # Le planificateur lance le job toutes les 15 minutes.
 gcloud run jobs add-iam-policy-binding "$JOB" --region "$REGION" \

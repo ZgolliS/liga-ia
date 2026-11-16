@@ -54,3 +54,30 @@ def test_liga_due_follows_calendar() -> None:
     now = datetime.now(UTC)
     assert liga_due(conn, now) is False                          # collecté à l'instant
     assert liga_due(conn, now + timedelta(minutes=70)) is True   # plus d'1 h après
+
+
+def test_football_error_does_not_block_news(tmp_path, monkeypatch) -> None:
+    # Cas réel : clé football-data.org refusée (HTTP 400) au premier déploiement.
+    fake_rss(monkeypatch)
+
+    class RefusedClient:
+        def get(self, endpoint):
+            request = httpx.Request("GET", "https://api.football-data.org" + endpoint)
+            raise httpx.HTTPStatusError("400", request=request,
+                                        response=httpx.Response(400, request=request))
+
+    bucket = LocalStorage(tmp_path / "bucket")
+    stats = run_job(bucket, tmp_path / "work", RefusedClient())
+    assert stats["matchs en erreur"] == 1
+    assert stats["articles ajouté"] == 2           # les actus ont quand même été collectées
+    assert bucket.version("foot.db") is not None   # et la base a été publiée
+
+
+def test_keys_are_stripped(monkeypatch) -> None:
+    from foot.football_data import FootballDataClient
+    from foot.llm import LLMClient
+
+    monkeypatch.setenv("FOOTBALL_DATA_TOKEN", "  abc123\n")
+    assert FootballDataClient()._http.headers["X-Auth-Token"] == "abc123"
+    monkeypatch.setenv("LLM_API_KEY", " AIzaTest ")
+    assert LLMClient()._headers["Authorization"] == "Bearer AIzaTest"

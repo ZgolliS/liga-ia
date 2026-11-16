@@ -36,7 +36,7 @@ class LLMClient:
         retries_per_model: int = 2,
         backoff: float = 2.0,
     ):
-        api_key = api_key or os.environ.get("LLM_API_KEY")
+        api_key = (api_key or os.environ.get("LLM_API_KEY") or "").strip()  # sans espaces
         if not api_key:
             raise RuntimeError("Définis la variable d'environnement LLM_API_KEY")
         self.base_url = (base_url or os.environ.get("LLM_BASE_URL", DEFAULT_BASE_URL)).rstrip("/")
