@@ -149,7 +149,15 @@ class StorageMirror:
             return False
         for name in INDEX_FILES:  # l'index d'abord, puis la base (même ordre que le job)
             self.storage.download(name, self.workdir / name)
-        self.current = self.storage.download(DB_NAME, self.db_path)
+        # La base peut venir d'une version plus ancienne du job : on la met à niveau
+        # AVANT de la rendre visible au site (remplacement atomique).
+        from foot.db import upgrade_file
+
+        incoming = self.db_path.with_suffix(".incoming")
+        version = self.storage.download(DB_NAME, incoming)
+        upgrade_file(incoming)
+        incoming.replace(self.db_path)
+        self.current = version  # annoncé seulement une fois le fichier en place
         log.info("Nouvelle version de la base chargée (%s)", self.current)
         if self.on_update:
             self.on_update()

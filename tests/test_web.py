@@ -157,3 +157,40 @@ def test_chat_returns_faces_of_linked_players(client) -> None:
     data = client.post("/api/chat", json={"message": "Unai Simón ?"}).json()
     assert "[Unai Simón](/joueur/1)" in data["answer"]
     assert data["faces"] == {"/joueur/1": "https://upload.wikimedia.org/x.jpg"}
+
+
+def test_site_survives_database_from_an_older_job(tmp_path, monkeypatch) -> None:
+    """Bug réel en production : le site plantait (erreur 500) sur une base produite par
+    l'ancienne version du job, sans les colonnes photo."""
+    import sqlite3
+
+    from foot.storage import LocalStorage, snapshot_db
+
+    job_db = connect(tmp_path / "job.db")
+    sync_liga(job_db, FakeClient())
+    snap = snapshot_db(job_db, tmp_path / "snap.db")
+    old = sqlite3.connect(snap)  # on simule l'ancienne base : colonnes photo absentes
+    for col in ["photo_url", "photo_author", "photo_license", "photo_page", "height_cm",
+                "birth_place", "foot", "wikidata_id", "wikidata_checked_at"]:
+        old.execute(f"ALTER TABLE players DROP COLUMN {col}")
+    old.commit()
+    old.close()
+    LocalStorage(tmp_path / "bucket").upload(snap, "foot.db")
+
+    monkeypatch.setattr(web, "DB_PATH", web.DB_PATH)
+    monkeypatch.setenv("STORAGE_URL", f"file://{tmp_path / 'bucket'}")
+    monkeypatch.setenv("WORK_DIR", str(tmp_path / "site"))
+    monkeypatch.setenv("ENABLE_SEMANTIC_SEARCH", "0")
+    monkeypatch.delenv("LLM_API_KEY", raising=False)
+    with TestClient(web.app) as c:
+        for path in ["/", "/mercato", "/classement", "/equipe/1", "/joueur/1"]:
+            assert c.get(path).status_code == 200, path
+
+
+def test_unexpected_error_shows_friendly_page(client, monkeypatch) -> None:
+    def boom(*args, **kwargs):
+        raise RuntimeError("panne imprévue")
+
+    monkeypatch.setattr(web.queries, "standings", boom)
+    r = TestClient(web.app, raise_server_exceptions=False).get("/classement")
+    assert r.status_code == 500 and "Petit souci technique" in r.text

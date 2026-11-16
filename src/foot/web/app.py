@@ -228,6 +228,16 @@ def player_page(request: Request, player_id: int, db=Depends(get_db)):
     return page(request, "player.html", player=p)
 
 
+@app.exception_handler(Exception)
+async def server_error(request: Request, exc: Exception):
+    """Erreur imprévue : on la note dans les journaux et on montre une page propre."""
+    log.exception("Erreur sur %s", request.url.path)
+    if request.url.path.startswith("/api/"):
+        return JSONResponse({"detail": "Erreur interne"}, status_code=500)
+    return templates.TemplateResponse(
+        request, "500.html", {"chat_enabled": False}, status_code=500)
+
+
 @app.exception_handler(StarletteHTTPException)
 async def http_error(request: Request, exc: StarletteHTTPException):
     """Page « introuvable » pour les visiteurs, JSON pour l'API."""

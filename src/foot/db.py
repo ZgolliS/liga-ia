@@ -72,6 +72,18 @@ def migrate(conn: sqlite3.Connection) -> list[str]:
     return added
 
 
+def upgrade_file(path: Path | str) -> None:
+    """Met une base téléchargée au niveau du code (tables et colonnes manquantes), sans
+    passer en mode WAL : le fichier reste un fichier unique, lisible en lecture seule."""
+    conn = sqlite3.connect(path)
+    conn.row_factory = sqlite3.Row
+    try:
+        conn.executescript(SCHEMA_PATH.read_text(encoding="utf-8"))
+        migrate(conn)
+    finally:
+        conn.close()
+
+
 def connect_readonly(path: Path | str) -> sqlite3.Connection:
     """Ouvre une copie de la base en lecture seule (le site sur Cloud Run)."""
     conn = sqlite3.connect(f"file:{path}?immutable=1", uri=True, check_same_thread=False)

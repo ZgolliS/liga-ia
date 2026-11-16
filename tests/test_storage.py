@@ -4,6 +4,20 @@ from foot.db import connect, save_raw
 from foot.storage import LocalStorage, open_storage, prune_raw, snapshot_db
 
 
+def make_db(path, marker: str):
+    """Une vraie petite base SQLite contenant un repère, pour les tests du miroir."""
+    db = sqlite3.connect(path)
+    db.execute("CREATE TABLE repere (v TEXT)")
+    db.execute("INSERT INTO repere VALUES (?)", (marker,))
+    db.commit()
+    db.close()
+    return path
+
+
+def marker_of(path) -> str:
+    return sqlite3.connect(path).execute("SELECT v FROM repere").fetchone()[0]
+
+
 def test_local_storage_roundtrip(tmp_path) -> None:
     store = LocalStorage(tmp_path / "bucket")
     assert store.version("foot.db") is None
@@ -55,10 +69,9 @@ def test_mirror_downloads_only_new_versions(tmp_path) -> None:
     mirror = StorageMirror(bucket, tmp_path / "site", on_update=lambda: updates.append(1))
     assert mirror.refresh() is False  # rien dans le bucket pour l'instant
 
-    src = tmp_path / "v1.db"
-    src.write_bytes(b"v1")
+    src = make_db(tmp_path / "v1.db", "v1")
     bucket.upload(src, "foot.db")
-    assert mirror.refresh() is True and mirror.db_path.read_bytes() == b"v1"
+    assert mirror.refresh() is True and marker_of(mirror.db_path) == "v1"
     assert mirror.refresh() is False  # même version : pas de nouveau téléchargement
     assert updates == [1]
 
@@ -69,8 +82,7 @@ def test_refresh_if_stale_runs_in_background(tmp_path) -> None:
     from foot.storage import StorageMirror
 
     bucket = LocalStorage(tmp_path / "bucket")
-    src = tmp_path / "v1.db"
-    src.write_bytes(b"v1")
+    src = make_db(tmp_path / "v1.db", "v1")
     bucket.upload(src, "foot.db")
     mirror = StorageMirror(bucket, tmp_path / "site")
     mirror.refresh_if_stale(max_age_s=60)  # jamais vérifié : lance une vérification
@@ -78,7 +90,7 @@ def test_refresh_if_stale_runs_in_background(tmp_path) -> None:
         if mirror.current:
             break
         _time.sleep(0.01)
-    assert mirror.db_path.read_bytes() == b"v1"
+    assert marker_of(mirror.db_path) == "v1"
     before = mirror.current
     mirror.refresh_if_stale(max_age_s=60)  # vérifié à l'instant : ne fait rien
     assert mirror.current == before
@@ -92,8 +104,7 @@ def test_refresh_if_stale_on_a_freshly_booted_machine(tmp_path, monkeypatch) -> 
 
     monkeypatch.setattr(storage_module.time, "monotonic", lambda: 5.0)  # démarrée il y a 5 s
     bucket = LocalStorage(tmp_path / "bucket")
-    src = tmp_path / "v1.db"
-    src.write_bytes(b"v1")
+    src = make_db(tmp_path / "v1.db", "v1")
     bucket.upload(src, "foot.db")
     mirror = StorageMirror(bucket, tmp_path / "site")
     mirror.refresh_if_stale(max_age_s=60)
