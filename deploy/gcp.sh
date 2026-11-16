@@ -3,6 +3,9 @@
 #
 #   git clone https://github.com/ZgolliS/liga-ia && cd liga-ia && bash deploy/gcp.sh
 #
+# Pour relancer sans reconstruire l'image (si elle a déjà été construite) :
+#   SKIP_BUILD=1 bash deploy/gcp.sh
+#
 # Le script peut être relancé sans risque : il ne recrée que ce qui manque, puis
 # reconstruit l'image et met à jour le site et le job.
 #
@@ -61,13 +64,26 @@ fi
 
 step "4/8 Clés API dans Secret Manager (saisies masquées, jamais affichées)"
 for name in FOOTBALL_DATA_TOKEN LLM_API_KEY; do
-  if gcloud secrets describe "$name" >/dev/null 2>&1; then
+  if ! gcloud secrets describe "$name" >/dev/null 2>&1; then
+    gcloud secrets create "$name" --replication-policy automatic >/dev/null
+  fi
+  # Le coffre-fort peut exister mais être vide (saisie vide lors d'un essai précédent) :
+  # on vérifie qu'il contient bien une clé active.
+  if gcloud secrets versions list "$name" --filter "state=ENABLED" --limit 1 \
+       --format "value(name)" | grep -q .; then
     echo "  $name : déjà enregistrée"
   else
-    read -rsp "  Colle ta clé $name puis Entrée : " value; echo
-    printf '%s' "$value" | gcloud secrets create "$name" --data-file=- \
-      --replication-policy automatic >/dev/null
+    value=""
+    while [[ -z "$value" ]]; do
+      read -rsp "  Colle ta clé $name puis Entrée (rien ne s'affiche, c'est normal) : " value
+      echo
+      if [[ -z "$value" ]]; then
+        echo "  ⚠️ Saisie vide : recommence (clic droit > Coller, puis Entrée)."
+      fi
+    done
+    printf '%s' "$value" | gcloud secrets versions add "$name" --data-file=- >/dev/null
     unset value
+    echo "  $name : enregistrée ✅"
   fi
 done
 
@@ -84,7 +100,11 @@ for name in FOOTBALL_DATA_TOKEN LLM_API_KEY; do
 done
 
 step "6/8 Construction de l'image Docker par Cloud Build (5 à 10 min)"
-gcloud builds submit --tag "$IMAGE" --region "$REGION" .
+if [[ "${SKIP_BUILD:-0}" == "1" ]]; then
+  echo "  SKIP_BUILD=1 : on réutilise l'image déjà construite."
+else
+  gcloud builds submit --tag "$IMAGE" --region "$REGION" .
+fi
 
 step "7/8 Job de collecte + premier remplissage de la base"
 gcloud run jobs deploy "$JOB" --image "$IMAGE" --region "$REGION" \
