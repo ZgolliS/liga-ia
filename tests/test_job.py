@@ -81,3 +81,40 @@ def test_keys_are_stripped(monkeypatch) -> None:
     assert FootballDataClient()._http.headers["X-Auth-Token"] == "abc123"
     monkeypatch.setenv("LLM_API_KEY", " AIzaTest ")
     assert LLMClient()._headers["Authorization"] == "Bearer AIzaTest"
+
+
+def test_llm_crash_still_publishes_database(tmp_path, monkeypatch) -> None:
+    # Cas réel : une erreur imprévue pendant l'analyse des rumeurs faisait tout planter
+    # AVANT l'envoi de la base -> site vide.
+    fake_rss(monkeypatch)
+
+    class CrashingLLM:
+        last_model = "x"
+
+        def chat_json(self, messages):
+            raise RuntimeError("panne imprévue")
+
+    bucket = LocalStorage(tmp_path / "bucket")
+    stats = run_job(bucket, tmp_path / "work", FakeClient(), llm=CrashingLLM())
+    assert stats["rumeurs en erreur"] == 1
+    db = sqlite3.connect(tmp_path / "bucket" / "foot.db")
+    assert db.execute("SELECT COUNT(*) FROM matches").fetchone()[0] == 3  # publié quand même
+
+
+def test_llm_work_is_capped_per_run(tmp_path, monkeypatch) -> None:
+    import foot.job as job_module
+
+    fake_rss(monkeypatch)
+    monkeypatch.setattr(job_module, "LLM_ARTICLES_PER_RUN", 1)
+
+    class CountingLLM:
+        last_model = "x"
+        batches = 0
+
+        def chat_json(self, messages):
+            CountingLLM.batches += 1
+            return {"rumeurs": []}
+
+    run_job(LocalStorage(tmp_path / "bucket"), tmp_path / "work", FakeClient(), llm=CountingLLM())
+    db = sqlite3.connect(tmp_path / "bucket" / "foot.db")
+    assert db.execute("SELECT COUNT(*) FROM news_processing").fetchone()[0] <= 1

@@ -63,3 +63,34 @@ def test_parse_json_with_markdown_fence() -> None:
     assert parse_json('```json\n{"a": 1}\n```') == {"a": 1}
     with pytest.raises(LLMError):
         parse_json("pas du json")
+
+
+def test_no_answer_at_all_is_retried_then_falls_back() -> None:
+    # Cas réel en production : Gemini ne répond pas (délai dépassé).
+    calls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        model = json.loads(request.content)["model"]
+        calls.append(model)
+        if model == "m1":
+            raise httpx.ReadTimeout("trop long", request=request)
+        return ok("secours")
+
+    http = httpx.Client(transport=httpx.MockTransport(handler))
+    llm = LLMClient("test", models=["m1", "m2"], http=http, backoff=0)
+    assert llm.chat([]) == "secours"
+    assert calls == ["m1", "m1", "m1", "m2"]
+
+
+def test_no_answer_from_any_model_raises_llm_error() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("injoignable", request=request)
+
+    http = httpx.Client(transport=httpx.MockTransport(handler))
+    with pytest.raises(LLMError, match="ConnectError"):
+        LLMClient("test", models=["m1"], http=http, backoff=0).chat([])
+
+
+def test_timeout_is_configurable() -> None:
+    llm = LLMClient("test", timeout=30)
+    assert llm._http.timeout.read == 30

@@ -105,7 +105,9 @@ async def lifespan(app: FastAPI):
     if not DB_PATH.exists():
         connect(DB_PATH).close()  # base vide avec le schéma, en attendant les données
     if os.environ.get("LLM_API_KEY"):
-        state.llm = LLMClient()
+        # Un visiteur n'attend pas 2 minutes : délai court, pas de réessai sur le même
+        # modèle, on passe directement au modèle de secours.
+        state.llm = LLMClient(retries_per_model=0, timeout=30)
     if os.environ.get("ENABLE_SEMANTIC_SEARCH", "1") == "1":
         from rag.embeddings import FastEmbedEmbedder
 

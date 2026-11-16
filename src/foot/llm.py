@@ -35,6 +35,7 @@ class LLMClient:
         http: httpx.Client | None = None,
         retries_per_model: int = 2,
         backoff: float = 2.0,
+        timeout: float = 120,
     ):
         api_key = (api_key or os.environ.get("LLM_API_KEY") or "").strip()  # sans espaces
         if not api_key:
@@ -42,7 +43,7 @@ class LLMClient:
         self.base_url = (base_url or os.environ.get("LLM_BASE_URL", DEFAULT_BASE_URL)).rstrip("/")
         env_models = os.environ.get("LLM_MODELS")
         self.models = models or (env_models.split(",") if env_models else DEFAULT_MODELS)
-        self._http = http or httpx.Client(timeout=120)
+        self._http = http or httpx.Client(timeout=timeout)
         self._headers = {"Authorization": f"Bearer {api_key}"}
         self._retries = retries_per_model
         self._backoff = backoff
@@ -67,8 +68,16 @@ class LLMClient:
             if tools:
                 body["tools"] = tools
             for attempt in range(self._retries + 1):
-                r = self._http.post(f"{self.base_url}/chat/completions",
-                                    headers=self._headers, json=body)
+                try:
+                    r = self._http.post(f"{self.base_url}/chat/completions",
+                                        headers=self._headers, json=body)
+                except httpx.TransportError as exc:
+                    # Pas de réponse du tout (délai dépassé, connexion coupée) :
+                    # traité comme une surcharge -> on réessaie puis modèle suivant.
+                    errors.append(f"{model}: {type(exc).__name__}")
+                    if attempt < self._retries:
+                        time.sleep(self._backoff * 2**attempt)
+                    continue
                 if r.status_code == 200:
                     self.last_model = model
                     return _extract_message(r.json())

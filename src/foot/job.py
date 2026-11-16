@@ -26,6 +26,8 @@ from foot.storage import DB_NAME, INDEX_FILES, Storage, open_storage, prune_raw,
 
 log = logging.getLogger("liga.job")
 MARGIN_S = 60  # le job passe toutes les 15 min : petite marge pour ne pas rater l'heure
+# Articles analysés par l'IA à chaque passage : passages courts, le reste au suivant.
+LLM_ARTICLES_PER_RUN = int(os.environ.get("LLM_ARTICLES_PER_RUN", "60"))
 
 
 def liga_due(conn, now: datetime | None = None) -> bool:
@@ -61,7 +63,11 @@ def run_job(storage: Storage, workdir: Path, football_client=None, llm=None, emb
                 stats["matchs en erreur"] += 1
         stats += sync_news(conn)
         if llm is not None:
-            stats += extract_claims(conn, llm)
+            try:  # une panne de l'IA ne doit jamais empêcher de publier la base
+                stats += extract_claims(conn, llm, limit=LLM_ARTICLES_PER_RUN)
+            except Exception:
+                log.exception("Analyse des rumeurs en échec : on publie quand même")
+                stats["rumeurs en erreur"] += 1
         with conn:
             stats["bronze purgé"] += prune_raw(conn)
 
