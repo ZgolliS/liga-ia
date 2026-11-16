@@ -2,28 +2,28 @@
 {% from "_macros.html" import rumor_card, news_list %}
 {% block title %}{{ player.name }}{% endblock %}
 {% block content %}
-<header class="profile">
+<header class="profile reveal">
   <div class="avatar" aria-hidden="true">{{ player.name[:1] }}</div>
   <div>
+    <span class="kicker">{{ player.position | position }}</span>
     <h1>{{ player.name }}</h1>
-    <p class="muted">
-      {{ player.position | position }}
-      {% if player.team %} · <a href="/equipe/{{ player.team_id }}">{{ player.team }}</a>{% endif %}
-      {% if player.age %} · {{ player.age }} ans{% endif %}
-      {% if player.nationality %} · {{ player.nationality }}{% endif %}
-    </p>
+    <div class="chips">
+      {% if player.team %}<a class="chip" href="/equipe/{{ player.team_id }}"><b>{{ player.team }}</b></a>{% endif %}
+      {% if player.age %}<span class="chip"><b>{{ player.age }}</b> ans</span>{% endif %}
+      {% if player.nationality %}<span class="chip">{{ player.nationality }}</span>{% endif %}
+    </div>
   </div>
 </header>
 
 <section class="section">
-  <h2>Mercato</h2>
+  <div class="section-head"><div><span class="kicker">Mercato</span><h2>Rumeurs de transfert</h2></div></div>
   <div class="rumors">{% for r in player.rumors %}{{ rumor_card(r) }}{% else %}<p class="muted">Aucune rumeur de transfert analysée pour ce joueur.</p>{% endfor %}</div>
 </section>
 
-<section class="card">
-  <h2>Actus</h2>
-  {{ news_list(player.news) }}
+<section class="section">
+  <div class="card reveal">
+    <h2>Actus</h2>
+    {{ news_list(player.news) }}
+  </div>
 </section>
-
-<p class="notice">📊 Les statistiques détaillées (cartons, blessures) arriveront dans une prochaine version.</p>
 {% endblock %}

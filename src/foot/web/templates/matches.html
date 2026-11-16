@@ -2,7 +2,8 @@
 {% from "_macros.html" import match_row %}
 {% block title %}Matchs · journée {{ journee }}{% endblock %}
 {% block content %}
-<h1 class="page-title">Matchs · journée {{ journee }}</h1>
+<span class="kicker">Calendrier & résultats</span>
+<h1 class="page-title">Journée <span class="gradient-text">{{ journee }}</span></h1>
 <nav class="pager" aria-label="Journées">
   {% if journee > 1 %}<a href="/matchs?journee={{ journee - 1 }}">← J{{ journee - 1 }}</a>{% endif %}
   <form method="get" action="/matchs">
@@ -13,7 +14,7 @@
   </form>
   {% if days and journee < days[-1] %}<a href="/matchs?journee={{ journee + 1 }}">J{{ journee + 1 }} →</a>{% endif %}
 </nav>
-<section class="card">
+<section class="card reveal">
   <ul class="matches">{% for m in matches %}{{ match_row(m) }}{% else %}<li class="muted">Aucun match pour cette journée.</li>{% endfor %}</ul>
   <p class="legend">Heures de Madrid.</p>
 </section>

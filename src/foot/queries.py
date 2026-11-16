@@ -10,6 +10,7 @@ import sqlite3
 from datetime import date
 
 from foot.entities import normalize
+from foot.reliability import Label
 from foot.rumors import Rumor, rumor_board
 
 _MATCH_SQL = """
@@ -161,7 +162,37 @@ def _match(r: sqlite3.Row) -> dict:
     return d
 
 
+LABEL_KIND = {Label.OFFICIEL: "officiel", Label.TRES_PROBABLE: "probable",
+              Label.RUMEUR: "rumeur", Label.INTOX: "intox"}
+
+
+def confidence(label: Label, score: float) -> int:
+    """Indice de confiance de 0 à 100, pour les jauges du site. Chaque étiquette a sa
+    plage, et le score (nombre et fiabilité des sources) place la rumeur dedans."""
+    low, base, per_point, high = {
+        Label.OFFICIEL: (100, 100, 0, 100),
+        Label.TRES_PROBABLE: (70, 70, 3, 95),
+        Label.RUMEUR: (35, 40, 5, 65),
+        Label.INTOX: (5, 15, 3, 30),
+    }[label]
+    return int(max(low, min(high, base + score * per_point)))
+
+
+def site_stats(conn: sqlite3.Connection) -> dict:
+    """Les compteurs de la page d'accueil."""
+    one = lambda sql: conn.execute(sql).fetchone()[0]
+    return {
+        "matches_played": one(f"SELECT COUNT(*) FROM matches WHERE status IN {PLAYED}"),
+        "players": one("SELECT COUNT(*) FROM players"),
+        "news": one("SELECT COUNT(*) FROM news"),
+        "rumors": len(rumor_board(conn)),
+        "goals": one(f"SELECT COALESCE(SUM(home_score + away_score), 0) FROM matches "
+                     f"WHERE status IN {PLAYED}"),
+    }
+
+
 def _rumor(r: Rumor) -> dict:
     return {"player": r.player, "player_id": r.player_id, "to_team": r.to_team,
-            "label": str(r.verdict.label), "score": r.verdict.score,
+            "label": str(r.verdict.label), "kind": LABEL_KIND[r.verdict.label],
+            "score": r.verdict.score, "confidence": confidence(r.verdict.label, r.verdict.score),
             "explanation": r.verdict.explain(), "articles": r.articles}

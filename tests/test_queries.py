@@ -67,3 +67,24 @@ def test_age() -> None:
     assert queries.age("2000-06-15", today=date(2026, 6, 14)) == 25
     assert queries.age("2000-06-15", today=date(2026, 6, 15)) == 26
     assert queries.age(None) is None
+
+
+def test_confidence_stays_in_each_label_range() -> None:
+    from foot.reliability import Label
+
+    assert queries.confidence(Label.OFFICIEL, 10) == 100
+    assert queries.confidence(Label.RUMEUR, 1.5) == 47
+    assert queries.confidence(Label.RUMEUR, 99) == 65        # plafonné
+    assert queries.confidence(Label.INTOX, -10) == 5         # plancher
+    assert 70 <= queries.confidence(Label.TRES_PROBABLE, 6) <= 95
+
+
+def test_site_stats(conn) -> None:
+    stats = queries.site_stats(conn)
+    assert stats["matches_played"] == 2 and stats["rumors"] == 1
+    assert stats["goals"] == 3 + 0 + 2 + 1  # Alavés 3-0 Getafe, Sevilla 2-1 Rayo
+
+
+def test_rumor_dict_has_kind_and_confidence(conn) -> None:
+    r = queries.rumors(conn)[0]
+    assert r["kind"] == "rumeur" and 35 <= r["confidence"] <= 65

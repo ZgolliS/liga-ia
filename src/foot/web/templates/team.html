@@ -2,23 +2,28 @@
 {% from "_macros.html" import crest, match_row, rumor_card, news_list %}
 {% block title %}{{ team.short_name or team.name }}{% endblock %}
 {% block content %}
-<header class="profile">
-  {% if team.crest %}<img class="profile-crest" src="{{ team.crest }}" alt="" width="72" height="72" onerror="this.remove()">{% endif %}
+<header class="profile reveal" {% if team.crest %}style="--bg-img: url('{{ team.crest }}')"{% endif %}>
+  {% if team.crest %}<img class="profile-crest" src="{{ team.crest }}" alt="" width="110" height="110" onerror="this.remove()">{% endif %}
   <div>
+    <span class="kicker">Club de Liga</span>
     <h1>{{ team.name }}</h1>
-    <p class="muted">
-      {% if team.coach %}Entraîneur : {{ team.coach }}{% endif %}
-      {% if team.standing %} · {{ team.standing.position }}<sup>e</sup> avec {{ team.standing.points }} pts ({{ team.standing.won }}V {{ team.standing.draw }}N {{ team.standing.lost }}D){% endif %}
-    </p>
+    <div class="chips">
+      {% if team.standing %}
+      <span class="chip"><b>{{ team.standing.position }}{{ 'er' if team.standing.position == 1 else 'e' }}</b> au classement</span>
+      <span class="chip"><b>{{ team.standing.points }}</b> pts</span>
+      <span class="chip"><b>{{ team.standing.won }}</b>V · <b>{{ team.standing.draw }}</b>N · <b>{{ team.standing.lost }}</b>D</span>
+      {% endif %}
+      {% if team.coach %}<span class="chip">Entraîneur : <b>{{ team.coach }}</b></span>{% endif %}
+    </div>
   </div>
 </header>
 
 <div class="grid">
-  <section class="card">
+  <section class="card reveal">
     <h2>Derniers matchs</h2>
     <ul class="matches">{% for m in team.last_matches %}{{ match_row(m) }}{% else %}<li class="muted">—</li>{% endfor %}</ul>
   </section>
-  <section class="card">
+  <section class="card reveal">
     <h2>Prochains matchs</h2>
     <ul class="matches">{% for m in team.next_matches %}{{ match_row(m) }}{% else %}<li class="muted">—</li>{% endfor %}</ul>
   </section>
@@ -26,25 +31,29 @@
 
 {% if team.rumors %}
 <section class="section">
-  <h2>Mercato</h2>
+  <div class="section-head"><div><span class="kicker">Mercato</span><h2>Rumeurs autour du club</h2></div></div>
   <div class="rumors">{% for r in team.rumors %}{{ rumor_card(r) }}{% endfor %}</div>
 </section>
 {% endif %}
 
-<section class="card table-scroll">
-  <h2>Effectif ({{ team.squad | length }} joueurs)</h2>
-  <table class="table">
-    <thead><tr><th>Joueur</th><th>Poste</th><th>Âge</th><th>Nationalité</th></tr></thead>
-    <tbody>
-    {% for p in team.squad %}
-      <tr><td><a href="/joueur/{{ p.id }}">{{ p.name }}</a></td><td>{{ p.position | position }}</td><td>{{ p.age or '—' }}</td><td>{{ p.nationality or '—' }}</td></tr>
-    {% endfor %}
-    </tbody>
-  </table>
+<section class="section">
+  <div class="card table-scroll reveal">
+    <h2>Effectif · {{ team.squad | length }} joueurs</h2>
+    <table class="table">
+      <thead><tr><th>Joueur</th><th>Poste</th><th>Âge</th><th class="hide-sm">Nationalité</th></tr></thead>
+      <tbody>
+      {% for p in team.squad %}
+        <tr><td><a class="team-cell" href="/joueur/{{ p.id }}">{{ p.name }}</a></td><td class="muted">{{ p.position | position }}</td><td>{{ p.age or '—' }}</td><td class="hide-sm muted">{{ p.nationality or '—' }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
 </section>
 
-<section class="card">
-  <h2>Actus</h2>
-  {{ news_list(team.news) }}
+<section class="section">
+  <div class="card reveal">
+    <h2>Actus</h2>
+    {{ news_list(team.news) }}
+  </div>
 </section>
 {% endblock %}

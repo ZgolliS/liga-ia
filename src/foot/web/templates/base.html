@@ -4,15 +4,20 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Liga IA{% endblock %} · Liga IA</title>
-  <meta name="description" content="Liga espagnole : classement, matchs, mercato avec fiabilité des rumeurs, et un assistant IA.">
+  <meta name="description" content="La Liga décodée par l'IA : classement, matchs, et un mercato où chaque rumeur est notée selon ses sources.">
+  <meta name="theme-color" content="#05060b">
+  <link rel="preload" href="/static/fonts/unbounded.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/static/fonts/space-grotesk.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/static/style.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚽</text></svg>">
 </head>
 <body>
+  <div class="backdrop" aria-hidden="true"><div class="grid-floor"></div></div>
+
   <header class="site-header">
     <div class="wrap header-inner">
-      <a class="brand" href="/"><span class="brand-ball">⚽</span> Liga <strong>IA</strong></a>
-      <nav class="nav">
+      <a class="brand" href="/"><span class="brand-ball" aria-hidden="true"></span> Liga <strong>IA</strong></a>
+      <nav class="nav" aria-label="Navigation principale">
         {% set path = request.url.path %}
         <a href="/" {% if path == '/' %}aria-current="page"{% endif %}>Accueil</a>
         <a href="/classement" {% if path.startswith('/classement') %}aria-current="page"{% endif %}>Classement</a>
@@ -22,31 +27,36 @@
     </div>
   </header>
 
+  {% block ticker %}{% endblock %}
+
   <main class="wrap">
     {% block content %}{% endblock %}
   </main>
 
   <footer class="site-footer">
     <div class="wrap">
-      <p>Données : <a href="https://www.football-data.org" rel="noopener">football-data.org</a> (matchs, classement, effectifs) et titres d'articles de médias sportifs (lien vers l'article d'origine).</p>
-      <p>Les niveaux de fiabilité des rumeurs sont calculés automatiquement à partir des sources : ils peuvent contenir des erreurs. Projet personnel, sans lien avec LaLiga ni les clubs.</p>
+      <p>Données : <a href="https://www.football-data.org" rel="noopener">football-data.org</a> (matchs, classement, effectifs) et titres d'articles de médias sportifs, avec lien vers l'article d'origine.</p>
+      <p>Les niveaux de fiabilité des rumeurs sont calculés automatiquement à partir des sources et peuvent contenir des erreurs. Projet personnel, sans lien avec LaLiga ni les clubs.</p>
     </div>
   </footer>
 
   {% if chat_enabled %}
   <button class="chat-toggle" id="chat-toggle" aria-expanded="false" aria-controls="chat-panel">
-    <span aria-hidden="true">💬</span><span class="chat-toggle-label">Poser une question</span>
+    <span class="chat-orb" aria-hidden="true">✦</span><span class="chat-toggle-label">Demande à l'IA</span>
   </button>
   <section class="chat-panel" id="chat-panel" hidden aria-label="Assistant Liga IA">
     <header class="chat-head">
-      <div><strong>Assistant Liga IA</strong><small>Répond à partir des données du site</small></div>
+      <div class="chat-id">
+        <span class="chat-orb" aria-hidden="true">✦</span>
+        <div><strong>Assistant Liga IA</strong><small>Répond à partir des données du site</small></div>
+      </div>
       <button class="chat-close" id="chat-close" aria-label="Fermer">×</button>
     </header>
     <div class="chat-log" id="chat-log" aria-live="polite">
-      <div class="msg bot">Hola ! 👋 Pose-moi une question sur la Liga : classement, prochains matchs, rumeurs de mercato…</div>
+      <div class="msg bot">¡Hola! 👋 Classement, prochains matchs, rumeurs de mercato… pose-moi ta question.</div>
       <div class="chat-suggestions" id="chat-suggestions">
         <button>Qui est premier de Liga ?</button>
-        <button>Quelles sont les rumeurs les plus fiables ?</button>
+        <button>Les rumeurs les plus fiables ?</button>
         <button>Prochain match du Barça ?</button>
       </div>
     </div>
@@ -57,5 +67,6 @@
   </section>
   <script src="/static/chat.js" defer></script>
   {% endif %}
+  <script src="/static/app.js" defer></script>
 </body>
 </html>

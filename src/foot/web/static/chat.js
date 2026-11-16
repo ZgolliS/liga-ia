@@ -50,7 +50,13 @@
   async function ask(question) {
     if (suggestions) suggestions.remove();
     add("user", question);
-    const typing = add("bot", "…", "typing");
+    // Indicateur « l'IA réfléchit » : trois points lumineux.
+    const typing = document.createElement("div");
+    typing.className = "msg bot typing";
+    typing.setAttribute("aria-label", "L'assistant réfléchit");
+    typing.innerHTML = "<i></i><i></i><i></i>";
+    log.appendChild(typing);
+    log.scrollTop = log.scrollHeight;
     form.querySelector("button").disabled = true;
     try {
       const res = await fetch("/api/chat", {

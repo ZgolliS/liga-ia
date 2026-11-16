@@ -45,7 +45,6 @@ STATUSES = {"FINISHED": "Terminé", "AWARDED": "Terminé", "IN_PLAY": "En direct
 DAYS = ["lun.", "mar.", "mer.", "jeu.", "ven.", "sam.", "dim."]
 MONTHS = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.",
           "nov.", "déc."]
-LABEL_CLASS = {"✅": "officiel", "🟢": "probable", "🟡": "rumeur", "🔴": "intox"}
 
 
 class AppState:
@@ -151,7 +150,6 @@ templates.env.filters["date"] = fmt_date
 templates.env.filters["day"] = lambda iso: fmt_date(iso, with_time=False)
 templates.env.filters["position"] = lambda p: POSITIONS.get(p or "", p or "—")
 templates.env.filters["status"] = lambda s: STATUSES.get(s, s)
-templates.env.filters["label_class"] = lambda label: LABEL_CLASS.get((label or " ")[0], "")
 
 
 # ------------------------------------------------------------ accès à la base
@@ -176,12 +174,13 @@ def page(request: Request, name: str, **context) -> HTMLResponse:
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request, db=Depends(get_db)):
     table = queries.standings(db)
-    return page(request, "home.html", standings=table[:6],
+    played = queries.matches(db, when="played", limit=12)
+    return page(request, "home.html", standings=table[:6], podium=table[:3],
                 live=queries.matches(db, when="live", limit=10),
-                last=queries.matches(db, when="played", limit=6),
+                last=played[:6], ticker=played,
                 upcoming=queries.matches(db, when="upcoming", limit=6),
                 rumors=queries.rumors(db, limit=6), news=queries.news(db, limit=6),
-                empty=not table)
+                stats=queries.site_stats(db), empty=not table)
 
 
 @app.get("/classement", response_class=HTMLResponse)
@@ -204,13 +203,12 @@ def matches_page(request: Request, journee: int | None = None, db=Depends(get_db
 @app.get("/mercato", response_class=HTMLResponse)
 def mercato_page(request: Request, fiabilite: str | None = None, db=Depends(get_db)):
     all_rumors = queries.rumors(db, limit=500)
-    shown = [r for r in all_rumors
-             if not fiabilite or templates.env.filters["label_class"](r["label"]) == fiabilite]
+    shown = [r for r in all_rumors if not fiabilite or r["kind"] == fiabilite]
     counts = defaultdict(int)
     for r in all_rumors:
-        counts[templates.env.filters["label_class"](r["label"])] += 1
+        counts[r["kind"]] += 1
     return page(request, "mercato.html", rumors=shown, counts=counts, filtre=fiabilite,
-                news=queries.news(db, limit=12))
+                rumors_total=len(all_rumors), news=queries.news(db, limit=12))
 
 
 @app.get("/equipe/{team_id}", response_class=HTMLResponse)
