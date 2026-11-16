@@ -1,22 +1,38 @@
 <!doctype html>
-<html lang="fr">
+<html lang="fr" class="no-js">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}Liga IA{% endblock %} · Liga IA</title>
-  <meta name="description" content="La Liga décodée par l'IA : classement, matchs, et un mercato où chaque rumeur est notée selon ses sources.">
-  <meta name="theme-color" content="#05060b">
-  <link rel="preload" href="/static/fonts/unbounded.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="preload" href="/static/fonts/space-grotesk.woff2" as="font" type="font/woff2" crossorigin>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>{% if meta.title %}{{ meta.title }}{% else %}{% block title %}Liga IA{% endblock %} — Liga IA{% endif %}</title>
+  <meta name="description" content="{{ meta.description or 'La Liga décodée : classement, résultats et mercato, avec une note de fiabilité pour chaque rumeur de transfert.' }}">
+  {% block robots %}<meta name="robots" content="index, follow, max-image-preview:large">{% endblock %}
+  {% if canonical %}<link rel="canonical" href="{{ canonical }}">{% endif %}
+
+  {# Aperçus de partage (WhatsApp, X, LinkedIn…) #}
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Liga IA">
+  <meta property="og:locale" content="fr_FR">
+  <meta property="og:title" content="{{ meta.title or 'Liga IA' }}">
+  <meta property="og:description" content="{{ meta.description or 'La Liga décodée : classement, résultats et mercato vérifié.' }}">
+  {% if canonical %}<meta property="og:url" content="{{ canonical }}">{% endif %}
+  <meta property="og:image" content="{{ meta.image or (base ~ '/static/og.png') }}">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <meta name="theme-color" content="#08090e">
+  <link rel="preload" href="/static/fonts/archivo.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/static/fonts/schibsted-grotesk.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/static/style.css">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚽</text></svg>">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23ff2d55'/><text x='50' y='72' font-size='64' font-family='Arial Black' text-anchor='middle' fill='%2308090e'>L</text></svg>">
+  <script>document.documentElement.classList.remove("no-js")</script>
+  {% for item in meta.jsonld or [] %}
+  <script type="application/ld+json">{{ item | tojson }}</script>
+  {% endfor %}
 </head>
 <body>
-  <div class="backdrop" aria-hidden="true"><div class="grid-floor"></div></div>
-
-  <header class="site-header">
-    <div class="wrap header-inner">
-      <a class="brand" href="/"><span class="brand-ball" aria-hidden="true"></span> Liga <strong>IA</strong></a>
+  <a class="sr-only" href="#contenu">Aller au contenu</a>
+  <header class="topbar">
+    <div class="wrap topbar-inner">
+      <a class="brand" href="/" aria-label="Liga IA, accueil">Liga <strong>IA</strong></a>
       <nav class="nav" aria-label="Navigation principale">
         {% set path = request.url.path %}
         <a href="/" {% if path == '/' %}aria-current="page"{% endif %}>Accueil</a>
@@ -29,31 +45,29 @@
 
   {% block ticker %}{% endblock %}
 
-  <main class="wrap">
+  <main id="contenu">
     {% block content %}{% endblock %}
   </main>
 
   <footer class="site-footer">
     <div class="wrap">
-      <p>Données : <a href="https://www.football-data.org" rel="noopener">football-data.org</a> (matchs, classement, effectifs) et titres d'articles de médias sportifs, avec lien vers l'article d'origine.</p>
-      <p>Les niveaux de fiabilité des rumeurs sont calculés automatiquement à partir des sources et peuvent contenir des erreurs. Projet personnel, sans lien avec LaLiga ni les clubs.</p>
+      <p class="wide" aria-hidden="true">Liga IA</p>
+      <p>Données : <a href="https://www.football-data.org" rel="noopener">football-data.org</a> (matchs, classement, effectifs), titres d'articles de médias sportifs avec lien vers l'article d'origine, photos de joueurs sous licence libre (Wikimedia Commons).</p>
+      <p>La fiabilité des rumeurs est calculée automatiquement à partir des sources et peut contenir des erreurs. Projet personnel, sans lien avec LaLiga ni les clubs.</p>
     </div>
   </footer>
 
   {% if chat_enabled %}
   <button class="chat-toggle" id="chat-toggle" aria-expanded="false" aria-controls="chat-panel">
-    <span class="chat-orb" aria-hidden="true">✦</span><span class="chat-toggle-label">Demande à l'IA</span>
+    <span class="chat-mark" aria-hidden="true">?</span><span class="chat-toggle-label">Demande à l'IA</span>
   </button>
   <section class="chat-panel" id="chat-panel" hidden aria-label="Assistant Liga IA">
     <header class="chat-head">
-      <div class="chat-id">
-        <span class="chat-orb" aria-hidden="true">✦</span>
-        <div><strong>Assistant Liga IA</strong><small>Répond à partir des données du site</small></div>
-      </div>
+      <div><strong>L'assistant</strong><small>Répond à partir des données du site</small></div>
       <button class="chat-close" id="chat-close" aria-label="Fermer">×</button>
     </header>
     <div class="chat-log" id="chat-log" aria-live="polite">
-      <div class="msg bot">¡Hola! 👋 Classement, prochains matchs, rumeurs de mercato… pose-moi ta question.</div>
+      <div class="msg bot">¡Hola! Classement, prochains matchs, rumeurs de mercato… pose ta question.</div>
       <div class="chat-suggestions" id="chat-suggestions">
         <button>Qui est premier de Liga ?</button>
         <button>Les rumeurs les plus fiables ?</button>
@@ -61,6 +75,7 @@
       </div>
     </div>
     <form class="chat-form" id="chat-form">
+      <label for="chat-input" class="sr-only">Ta question</label>
       <input id="chat-input" name="message" maxlength="500" autocomplete="off" placeholder="Ta question…" required>
       <button type="submit" aria-label="Envoyer">➤</button>
     </form>

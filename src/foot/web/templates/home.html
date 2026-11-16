@@ -1,107 +1,127 @@
 {% extends "base.html" %}
 {% from "_macros.html" import crest, match_row, rumor_card, news_list %}
-{% block title %}Accueil{% endblock %}
 
 {% block ticker %}
 {% if ticker %}
 <div class="ticker" aria-label="Derniers résultats">
-  <div class="ticker-inner">
-    <span class="ticker-tag">RÉSULTATS</span>
-    <div class="ticker-track">
-      {% for _ in range(2) %}{# contenu doublé : la boucle défile sans à-coup #}
-        {% for m in ticker %}
-        <span class="ticker-item" {% if _ == 1 %}aria-hidden="true"{% endif %}>{{ m.home }} <b>{{ m.home_score }} – {{ m.away_score }}</b> {{ m.away }}</span>
-        {% endfor %}
+  <div class="ticker-track">
+    {% for _ in range(2) %}{# contenu doublé : la boucle défile sans à-coup #}
+      {% for m in ticker %}
+      <span class="ticker-item" {% if _ == 1 %}aria-hidden="true"{% endif %}>{{ m.home }}<b>{{ m.home_score }}–{{ m.away_score }}</b>{{ m.away }}</span>
       {% endfor %}
-    </div>
+    {% endfor %}
   </div>
 </div>
 {% endif %}
 {% endblock %}
 
 {% block content %}
-<section class="hero">
-  <div class="reveal">
-    <span class="badge-live"><i></i> Mis à jour toutes les 15 minutes</span>
-    <h1>La Liga,<br><span class="gradient-text">décodée par l'IA.</span></h1>
-    <p>Classement en direct, résultats, et un mercato où chaque rumeur reçoit une <strong>note de confiance</strong> selon ses sources. Fini l'intox.</p>
-    <div class="cta-row">
-      <a class="btn btn-primary" href="/mercato">Explorer le mercato →</a>
-      {% if chat_enabled %}<button class="btn" type="button" data-open-chat>✦ Demander à l'IA</button>{% endif %}
+<section class="band band--ink hero">
+  <div class="wrap">
+    <div class="hero-kicker label">
+      {% if season %}<span>Saison {{ season }}</span>{% endif %}
+      <span>Mis à jour toutes les 15 min</span>
     </div>
-  </div>
+    <h1><span class="wide" data-reveal>La Liga</span><span class="brush" data-reveal>décodée.</span></h1>
+    <p class="lead" data-reveal>Classement, résultats, et un mercato où chaque rumeur reçoit un <strong>indice de confiance</strong> selon ses sources. Fini l'intox.</p>
+    {% if meta.summary %}<p class="summary" data-reveal>{{ meta.summary }}</p>{% endif %}
+    <div class="cta-row" data-reveal>
+      <a class="btn btn-solid" href="/mercato">Le mercato vérifié</a>
+      {% if chat_enabled %}<button class="btn" type="button" data-open-chat>Demande à l'IA</button>{% endif %}
+    </div>
 
-  {% if podium|length == 3 %}
-  <div class="podium reveal" aria-label="Podium de la Liga">
-    {% for s in [podium[1], podium[0], podium[2]] %}
-    <a class="step step-{{ s.position }}" href="/equipe/{{ s.team_id }}">
-      <div class="rank">{{ s.position }}{{ 'er' if s.position == 1 else 'e' }}</div>
-      {% if s.crest %}<img src="{{ s.crest }}" alt="" onerror="this.style.visibility='hidden'">{% else %}<span class="crest-ph"></span>{% endif %}
-      <div class="name">{{ s.team }}</div>
-      <div class="pts">{{ s.points }} <small>pts</small></div>
+    {% if leader %}
+    <a class="leader" href="/equipe/{{ leader.team_id }}" data-reveal>
+      <span class="outline-num" data-count="{{ leader.points }}">{{ leader.points }}</span>
+      <span class="label muted">Points du leader</span>
+      <span class="leader-team">{% if leader.crest %}<img src="{{ leader.crest }}" alt="" width="40" height="40" onerror="this.remove()">{% endif %}{{ leader.team }}</span>
     </a>
-    {% endfor %}
+    {% endif %}
   </div>
-  {% endif %}
 </section>
 
 {% if empty %}
-<p class="notice">⏳ Les données sont en cours de chargement. Reviens dans une minute !</p>
-{% else %}
-<div class="stats reveal">
-  <div class="stat"><b data-count="{{ stats.matches_played }}">{{ stats.matches_played }}</b><span>matchs analysés</span></div>
-  <div class="stat"><b data-count="{{ stats.goals }}">{{ stats.goals }}</b><span>buts marqués</span></div>
-  <div class="stat"><b data-count="{{ stats.players }}">{{ stats.players }}</b><span>joueurs suivis</span></div>
-  <div class="stat"><b data-count="{{ stats.rumors }}">{{ stats.rumors }}</b><span>rumeurs vérifiées</span></div>
-</div>
+<div class="wrap"><p class="summary">Les données sont en cours de chargement. Reviens dans une minute !</p></div>
 {% endif %}
 
 {% if live %}
-<section class="section reveal">
-  <div class="section-head"><div><span class="kicker">En ce moment</span><h2><span class="live-dot">EN DIRECT</span></h2></div></div>
-  <ul class="matches">{% for m in live %}{{ match_row(m) }}{% endfor %}</ul>
+<section class="band band--red">
+  <div class="wrap">
+    <div class="band-head"><h2 class="band-title wide"><span class="brush">en ce moment</span>En direct</h2></div>
+    <ul class="matches">{% for m in live %}{{ match_row(m) }}{% endfor %}</ul>
+  </div>
 </section>
 {% endif %}
 
-<section class="section">
-  <div class="grid">
-    <div class="card reveal">
-      <h2>Classement <a class="more" href="/classement">Tout voir →</a></h2>
+{% if standings %}
+<section class="band band--violet" aria-labelledby="t-classement">
+  <div class="wrap">
+    <div class="band-head">
+      <h2 class="band-title wide" id="t-classement" data-reveal><span class="brush">le</span>Classement</h2>
+      <a class="more" href="/classement">Tout le classement</a>
+    </div>
+    <div class="table-scroll" data-reveal>
       <table class="table">
-        <thead><tr><th>#</th><th>Équipe</th><th>J</th><th>Pts</th></tr></thead>
+        <thead><tr><th>#</th><th>Équipe</th><th class="num">J</th><th class="num">Pts</th></tr></thead>
         <tbody>
         {% for s in standings %}
           <tr class="{% if s.position <= 4 %}zone-ucl{% endif %}">
             <td><span class="pos">{{ s.position }}</span></td>
             <td><a class="team-cell" href="/equipe/{{ s.team_id }}">{{ crest(s.crest) }} {{ s.team }}</a></td>
-            <td class="muted">{{ s.played }}</td><td class="pts">{{ s.points }}</td>
+            <td class="num">{{ s.played }}</td><td class="num pts">{{ s.points }}</td>
           </tr>
         {% endfor %}
         </tbody>
       </table>
     </div>
-    <div class="card reveal">
-      <h2>Derniers résultats <a class="more" href="/matchs">Matchs →</a></h2>
-      <ul class="matches">{% for m in last %}{{ match_row(m) }}{% endfor %}</ul>
+  </div>
+</section>
+{% endif %}
+
+<section class="band band--ink" aria-labelledby="t-matchs">
+  <div class="wrap">
+    <div class="band-head">
+      <h2 class="band-title wide" id="t-matchs" data-reveal><span class="brush">sur le terrain</span>Matchs</h2>
+      <a class="more" href="/matchs">Calendrier</a>
     </div>
-    <div class="card reveal">
-      <h2>À venir</h2>
-      <ul class="matches">{% for m in upcoming %}{{ match_row(m) }}{% else %}<li class="muted">Aucun match programmé.</li>{% endfor %}</ul>
+    <div class="rail">
+      <div class="panel" data-reveal>
+        <h3>Derniers résultats</h3>
+        <ul class="matches">{% for m in last %}{{ match_row(m) }}{% endfor %}</ul>
+      </div>
+      <div class="panel" data-reveal>
+        <h3>À venir</h3>
+        <ul class="matches">{% for m in upcoming %}{{ match_row(m) }}{% else %}<li class="muted">Aucun match programmé.</li>{% endfor %}</ul>
+      </div>
     </div>
   </div>
 </section>
 
-<section class="section">
-  <div class="section-head reveal">
-    <div><span class="kicker">Mercato</span><h2>Les rumeurs du moment</h2></div>
-    <a class="more" href="/mercato">Tout le mercato →</a>
+<section class="band band--red" aria-labelledby="t-mercato">
+  <p class="slide-word" data-slide aria-hidden="true">Mercato Mercato</p>
+  <div class="wrap">
+    <div class="band-head">
+      <h2 class="band-title wide" id="t-mercato" data-reveal><span class="brush">les rumeurs</span>vérifiées</h2>
+      <a class="more" href="/mercato">Tout le mercato</a>
+    </div>
+    <div class="rumors">{% for r in rumors %}{{ rumor_card(r) }}{% else %}<p>Pas encore de rumeur analysée.</p>{% endfor %}</div>
   </div>
-  <div class="rumors">{% for r in rumors %}{{ rumor_card(r) }}{% else %}<p class="muted">Pas encore de rumeur analysée.</p>{% endfor %}</div>
 </section>
 
-<section class="section">
-  <div class="card reveal">
-    <h2>Dernières actus</h2>
+{% if not empty %}
+<section class="band band--cyan" aria-label="Chiffres clés">
+  <div class="wrap numbers">
+    <div class="number" data-reveal><span class="outline-num" data-count="{{ stats.matches_played }}">{{ stats.matches_played }}</span><span>matchs joués</span></div>
+    <div class="number" data-reveal><span class="outline-num" data-count="{{ stats.goals }}">{{ stats.goals }}</span><span>buts marqués</span></div>
+    <div class="number" data-reveal><span class="outline-num" data-count="{{ stats.players }}">{{ stats.players }}</span><span>joueurs suivis</span></div>
+    <div class="number" data-reveal><span class="outline-num" data-count="{{ stats.rumors }}">{{ stats.rumors }}</span><span>rumeurs notées</span></div>
+  </div>
+</section>
+{% endif %}
+
+<section class="band band--ink2" aria-labelledby="t-actus">
+  <div class="wrap">
+    <div class="band-head"><h2 class="band-title wide" id="t-actus" data-reveal><span class="brush">à la une</span>Actus</h2></div>
     {{ news_list(news) }}
   </div>
 </section>

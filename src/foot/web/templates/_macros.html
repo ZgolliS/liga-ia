@@ -1,6 +1,5 @@
 {% macro face(url, name, size=36) -%}
-  {# Tête ronde du joueur (photo libre Wikimedia), ou ses initiales s'il n'y en a pas #}
-  {# Si la photo ne charge pas, on la cache et on montre l'initiale (aucune donnée dans le JS) #}
+  {# Tête du joueur (photo libre Wikimedia) ; si elle ne charge pas, son initiale (aucune donnée dans le JS) #}
   {% if url %}<img class="face" src="{{ url }}" alt="" loading="lazy" width="{{ size }}" height="{{ size }}" style="--s:{{ size }}px" onerror="this.hidden=true;this.nextElementSibling.hidden=false">{% endif %}<span class="face face-ph" style="--s:{{ size }}px" aria-hidden="true" {% if url %}hidden{% endif %}>{{ (name or '?')[:1] }}</span>
 {%- endmacro %}
 
@@ -10,47 +9,49 @@
 
 {% macro match_row(m) -%}
 <li class="match {% if m.status in ('IN_PLAY', 'PAUSED') %}is-live{% endif %}">
-  <span class="match-date">{% if m.status in ('IN_PLAY', 'PAUSED') %}<span class="live-dot">{{ m.status | status }}</span> · {% endif %}{{ m.date | date }}</span>
+  <time class="match-date" datetime="{{ m.date }}">{% if m.status in ('IN_PLAY', 'PAUSED') %}<span class="live-dot">{{ m.status | status }}</span> · {% endif %}{{ m.date | date }}</time>
   <a class="team home" href="/equipe/{{ m.home_id }}">{{ m.home }} {{ crest(m.home_crest) }}</a>
-  {% if m.played %}<span class="score">{{ m.home_score }} – {{ m.away_score }}</span>{% else %}<span class="score vs">VS</span>{% endif %}
+  {% if m.played %}<span class="score">{{ m.home_score }}–{{ m.away_score }}</span>{% else %}<span class="score vs">VS</span>{% endif %}
   <a class="team away" href="/equipe/{{ m.away_id }}">{{ crest(m.away_crest) }} {{ m.away }}</a>
 </li>
 {%- endmacro %}
 
 {% macro rumor_card(r) -%}
-<article class="rumor {{ r.kind }} reveal">
+<article class="rumor {{ r.kind }}" data-reveal>
   <div class="rumor-top">
-    <div class="gauge" style="--p: {{ r.confidence }}" role="img" aria-label="Indice de confiance : {{ r.confidence }} sur 100"><span>{{ r.confidence }}</span></div>
     <div>
       <span class="badge">{{ r.label }}</span>
       <h3>{% if r.player_id %}<a class="who" href="/joueur/{{ r.player_id }}">{{ face(r.photo_url, r.player, 30) }}{{ r.player }}</a>{% else %}{{ r.player }}{% endif %}
-        <span class="arrow">→</span> {{ r.to_team }}</h3>
+        <span class="to">→ {{ r.to_team }}</span></h3>
+    </div>
+    <div class="confidence" role="img" aria-label="Indice de confiance : {{ r.confidence }} sur 100">
+      <span class="outline-num">{{ r.confidence }}</span><small>confiance</small>
     </div>
   </div>
   <p class="why">{{ r.explanation.split(' — ', 1)[1] if ' — ' in r.explanation else r.explanation }}</p>
   <ul class="sources">
     {% for a in r.articles[:3] %}
-    <li><a href="{{ a.url }}" target="_blank" rel="noopener">{{ a.title }}</a> <small>{{ a.source }} · {{ a.date | day }}</small></li>
+    <li><a href="{{ a.url }}" target="_blank" rel="noopener">{{ a.title }}</a> <small>{{ a.source }} · <time datetime="{{ a.date }}">{{ a.date | day }}</time></small></li>
     {% endfor %}
   </ul>
 </article>
 {%- endmacro %}
 
 {% macro news_list(items) -%}
-<ul class="news">
+<ol class="news">
   {% for n in items %}
-  <li><a href="{{ n.url }}" target="_blank" rel="noopener">{{ n.title }}</a><small>{{ n.source }} · {{ n.published_at | date }}</small></li>
+  <li data-reveal><div><a href="{{ n.url }}" target="_blank" rel="noopener">{{ n.title }}</a><small>{{ n.source }} · <time datetime="{{ n.published_at }}">{{ n.published_at | date }}</time></small></div></li>
   {% else %}
-  <li class="muted">Aucune actu pour l'instant.</li>
+  <li class="empty muted">Aucune actu pour l'instant.</li>
   {% endfor %}
-</ul>
+</ol>
 {%- endmacro %}
 
 {% macro legend_labels() -%}
 <ul class="legend-labels">
-  <li><span class="badge officiel">✅ Officiel</span> confirmé par le club, la ligue ou le joueur</li>
-  <li><span class="badge probable">🟢 Très probable</span> plusieurs sources fiables</li>
-  <li><span class="badge rumeur">🟡 Rumeur</span> une source fiable, sans confirmation</li>
-  <li><span class="badge intox">🔴 Intox probable</span> sources non vérifiées ou démenti</li>
+  <li class="officiel"><span class="badge">✅ Officiel</span> confirmé par le club, la ligue ou le joueur</li>
+  <li class="probable"><span class="badge">🟢 Très probable</span> plusieurs sources fiables</li>
+  <li class="rumeur"><span class="badge">🟡 Rumeur</span> une source fiable, sans confirmation</li>
+  <li class="intox"><span class="badge">🔴 Intox probable</span> sources non vérifiées ou démenti</li>
 </ul>
 {%- endmacro %}

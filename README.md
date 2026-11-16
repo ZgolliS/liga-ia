@@ -78,7 +78,16 @@ site, puis planifie la collecte. On peut le relancer pour publier une nouvelle v
 | `STORAGE_URL` | Cloud | `gs://bucket` : le job y dépose la base, le site la lit |
 | `WIKIMEDIA_TOKEN` | non | jeton Wikimedia gratuit : photos des joueurs moins limitées par Wikimedia |
 | `ENABLE_WIKIDATA` | non | `0` = pas de photos ni d'infos joueurs depuis Wikidata |
+| `SITE_URL` | conseillé | adresse publique du site (adresses canoniques, sitemap) |
 | `ENABLE_SEMANTIC_SEARCH` | non | `0` = recherche des actus par mots-clés (moins de mémoire) |
+
+## Référencement (SEO et GEO)
+
+Chaque page a un titre et une description uniques, un résumé factuel en tête (facile à
+citer par les moteurs de réponse IA), et des données structurées schema.org (SportsTeam,
+Person, SportsEvent, BreadcrumbList). Le site publie `/robots.txt` (robots des moteurs et
+des IA autorisés), `/sitemap.xml` et `/llms.txt`. Définir `SITE_URL` (adresse publique) en
+production pour des adresses canoniques stables.
 
 ## Photos des joueurs
 

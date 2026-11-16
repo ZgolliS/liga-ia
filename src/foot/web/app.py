@@ -18,7 +18,8 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from fastapi import Depends, FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
@@ -28,6 +29,7 @@ from foot import queries
 from foot.chatbot import Chatbot
 from foot.db import connect, connect_readonly
 from foot.llm import LLMClient
+from foot.web import seo
 
 log = logging.getLogger("liga")
 HERE = Path(__file__).parent
@@ -129,6 +131,18 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Liga IA", lifespan=lifespan, docs_url=None, redoc_url=None)
+app.add_middleware(GZipMiddleware, minimum_size=800)  # pages et JSON compressés
+
+
+@app.middleware("http")
+async def cache_headers(request: Request, call_next):
+    """Les fichiers statiques (polices, CSS, JS) se gardent une semaine dans le navigateur."""
+    response = await call_next(request)
+    if request.url.path.startswith("/static/"):
+        response.headers["Cache-Control"] = "public, max-age=604800"
+    return response
+
+
 app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
 templates = Jinja2Templates(directory=HERE / "templates")
 
@@ -165,9 +179,16 @@ def get_db():
         conn.close()
 
 
-def page(request: Request, name: str, **context) -> HTMLResponse:
-    return templates.TemplateResponse(request, name, {"chat_enabled": state.llm is not None,
-                                                      **context})
+def base_url(request: Request) -> str:
+    return seo.site_url(str(request.base_url))
+
+
+def page(request: Request, name: str, meta: dict | None = None, **context) -> HTMLResponse:
+    base = base_url(request)
+    path = request.url.path + (f"?{request.url.query}" if request.url.query else "")
+    return templates.TemplateResponse(request, name, {
+        "chat_enabled": state.llm is not None, "base": base, "canonical": base + path,
+        "meta": meta or {}, **context})
 
 
 # ------------------------------------------------------------ pages
@@ -176,17 +197,23 @@ def page(request: Request, name: str, **context) -> HTMLResponse:
 def home(request: Request, db=Depends(get_db)):
     table = queries.standings(db)
     played = queries.matches(db, when="played", limit=12)
-    return page(request, "home.html", standings=table[:6], podium=table[:3],
+    stats = queries.site_stats(db)
+    season = queries.current_season(db)
+    return page(request, "home.html", seo.home(base_url(request), table, stats, season),
+                standings=table[:6], podium=table[:3], leader=table[0] if table else None,
                 live=queries.matches(db, when="live", limit=10),
-                last=played[:6], ticker=played,
+                last=played[:6], ticker=played, season=seo.season_label(season),
                 upcoming=queries.matches(db, when="upcoming", limit=6),
                 rumors=queries.rumors(db, limit=6), news=queries.news(db, limit=6),
-                stats=queries.site_stats(db), empty=not table)
+                stats=stats, empty=not table)
 
 
 @app.get("/classement", response_class=HTMLResponse)
 def standings_page(request: Request, db=Depends(get_db)):
-    return page(request, "standings.html", standings=queries.standings(db))
+    rows = queries.standings(db)
+    season = queries.current_season(db)
+    return page(request, "standings.html", seo.standings(base_url(request), rows, season),
+                standings=rows, season=seo.season_label(season))
 
 
 @app.get("/matchs", response_class=HTMLResponse)
@@ -198,7 +225,8 @@ def matches_page(request: Request, journee: int | None = None, db=Depends(get_db
         journee = nxt[0]["matchday"] if nxt else (days[-1] if days else 1)
     rows = [queries._match(r) for r in db.execute(
         queries._MATCH_SQL + " WHERE m.matchday = ? ORDER BY m.utc_date", (journee,))]
-    return page(request, "matches.html", matches=rows, journee=journee, days=days)
+    return page(request, "matches.html", seo.matches(base_url(request), journee, rows),
+                matches=rows, journee=journee, days=days)
 
 
 @app.get("/mercato", response_class=HTMLResponse)
@@ -208,7 +236,8 @@ def mercato_page(request: Request, fiabilite: str | None = None, db=Depends(get_
     counts = defaultdict(int)
     for r in all_rumors:
         counts[r["kind"]] += 1
-    return page(request, "mercato.html", rumors=shown, counts=counts, filtre=fiabilite,
+    return page(request, "mercato.html", seo.mercato(base_url(request), len(all_rumors), counts),
+                rumors=shown, counts=counts, filtre=fiabilite,
                 rumors_total=len(all_rumors), news=queries.news(db, limit=12))
 
 
@@ -217,7 +246,7 @@ def team_page(request: Request, team_id: int, db=Depends(get_db)):
     t = queries.team(db, team_id)
     if t is None:
         raise HTTPException(404)
-    return page(request, "team.html", team=t)
+    return page(request, "team.html", seo.team(base_url(request), t), team=t)
 
 
 @app.get("/joueur/{player_id}", response_class=HTMLResponse)
@@ -225,7 +254,12 @@ def player_page(request: Request, player_id: int, db=Depends(get_db)):
     p = queries.player(db, player_id)
     if p is None:
         raise HTTPException(404)
-    return page(request, "player.html", player=p)
+    return page(request, "player.html", seo.player(base_url(request), p), player=p)
+
+
+def error_context(request: Request) -> dict:
+    """Contexte minimal des pages d'erreur (pas d'adresse canonique : non indexées)."""
+    return {"chat_enabled": False, "meta": {}, "base": base_url(request), "canonical": None}
 
 
 @app.exception_handler(Exception)
@@ -234,17 +268,78 @@ async def server_error(request: Request, exc: Exception):
     log.exception("Erreur sur %s", request.url.path)
     if request.url.path.startswith("/api/"):
         return JSONResponse({"detail": "Erreur interne"}, status_code=500)
-    return templates.TemplateResponse(
-        request, "500.html", {"chat_enabled": False}, status_code=500)
+    return templates.TemplateResponse(request, "500.html", error_context(request), status_code=500)
 
 
 @app.exception_handler(StarletteHTTPException)
 async def http_error(request: Request, exc: StarletteHTTPException):
     """Page « introuvable » pour les visiteurs, JSON pour l'API."""
     if exc.status_code == 404 and not request.url.path.startswith("/api/"):
-        return templates.TemplateResponse(
-            request, "404.html", {"chat_enabled": state.llm is not None}, status_code=404)
+        return templates.TemplateResponse(request, "404.html", error_context(request),
+                                          status_code=404)
     return JSONResponse({"detail": exc.detail}, status_code=exc.status_code)
+
+
+# ------------------------------------------------------------ robots et moteurs IA
+
+AI_BOTS = ["GPTBot", "OAI-SearchBot", "ChatGPT-User", "ClaudeBot", "Claude-SearchBot",
+           "PerplexityBot", "Google-Extended", "Applebot-Extended", "CCBot"]
+
+
+@app.get("/robots.txt", response_class=PlainTextResponse)
+def robots(request: Request):
+    """Tout le monde peut lire le site (moteurs classiques ET robots des IA), sauf l'API."""
+    lines = ["User-agent: *", "Allow: /", "Disallow: /api/", ""]
+    for bot in AI_BOTS:  # explicite : on VEUT être cité par les moteurs de réponse IA
+        lines += [f"User-agent: {bot}", "Allow: /", "Disallow: /api/", ""]
+    lines.append(f"Sitemap: {base_url(request)}/sitemap.xml")
+    return "\n".join(lines) + "\n"
+
+
+@app.get("/sitemap.xml")
+def sitemap(request: Request, db=Depends(get_db)):
+    base = base_url(request)
+    today = datetime.now(UTC).date().isoformat()
+    urls = [(f"{base}{path}", freq, prio) for path, freq, prio in [
+        ("/", "hourly", "1.0"), ("/classement", "daily", "0.9"),
+        ("/matchs", "hourly", "0.9"), ("/mercato", "hourly", "0.9")]]
+    urls += [(f"{base}/equipe/{r[0]}", "daily", "0.8") for r in db.execute("SELECT id FROM teams")]
+    urls += [(f"{base}/joueur/{r[0]}", "weekly", "0.6") for r in db.execute("SELECT id FROM players")]
+    body = "".join(f"<url><loc>{loc}</loc><lastmod>{today}</lastmod><changefreq>{freq}"
+                   f"</changefreq><priority>{prio}</priority></url>" for loc, freq, prio in urls)
+    xml = ('<?xml version="1.0" encoding="UTF-8"?>'
+           f'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{body}</urlset>')
+    return Response(xml, media_type="application/xml")
+
+
+@app.get("/llms.txt", response_class=PlainTextResponse)
+def llms_txt(request: Request, db=Depends(get_db)):
+    """Présentation du site pour les IA (convention llms.txt) : quoi, où, à quel point c'est frais."""
+    base = base_url(request)
+    table = queries.standings(db)
+    stats = queries.site_stats(db)
+    meta = seo.home(base, table, stats, queries.current_season(db))
+    teams = "\n".join(f"- [{r['team']}]({base}/equipe/{r['team_id']}) : {seo.ordinal(r['position'])}, "
+                      f"{r['points']} pts" for r in table)
+    return f"""# Liga IA
+
+> Site francophone sur la Liga espagnole : classement, résultats, calendrier, effectifs et
+> mercato. Chaque rumeur de transfert reçoit une note de fiabilité (officiel, très probable,
+> rumeur, intox probable) calculée à partir de la fiabilité et du nombre des sources.
+
+{meta['summary'] or ''}
+
+Données mises à jour toutes les 15 minutes (matchs : football-data.org ; actus : médias
+sportifs, avec lien vers l'article d'origine ; photos : Wikimedia Commons, licences libres).
+
+## Pages principales
+- [Classement de la Liga]({base}/classement)
+- [Matchs et résultats]({base}/matchs)
+- [Mercato vérifié]({base}/mercato) : {stats['rumors']} rumeurs notées
+
+## Équipes
+{teams}
+"""
 
 
 # ------------------------------------------------------------ API du chatbot

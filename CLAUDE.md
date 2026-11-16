@@ -57,6 +57,23 @@ Médaillon : bronze (`raw_payloads` : réponses brutes des API, RSS et IA) -> ar
 `src/rag/` : moteur RAG des débuts (découpage, embeddings, base vectorielle numpy).
 Le modèle lit ~128 tokens max : textes courts (chunks <= 400 caractères).
 
+## Design et SEO
+- Direction éditoriale inspirée de ousmaneballondor.fr : fond encre + grain papier, aplats
+  de la charte (rouge #ff2d55, violet #7c3aed, cyan #22d3ee) en sections pleine largeur
+  (`.band--*`), texte foncé sur rouge/cyan, blanc sur violet/encre. PAS de dégradés néon,
+  halos ni effet verre (look « IA » à éviter).
+- Polices hébergées (static/fonts, licences OFL/Apache) : Archivo variable (wght 100-900,
+  wdth 62-125 : `.wide` très large, `.cond` condensé, `.outline-num` chiffres en contour),
+  Schibsted Grotesk (texte), Permanent Marker (`.brush`, mots au pinceau).
+- Mobile d'abord (règles de base = téléphone, @media min-width 640/960). Vérifier en 390 px
+  qu'aucun titre ne dépasse.
+- Animations au défilement (`static/app.js`) : `data-reveal`, `data-slide`, `data-count` ;
+  désactivées avec prefers-reduced-motion ; les compteurs visibles au chargement gardent
+  leur vraie valeur (robots).
+- `web/seo.py` : titre/description uniques, résumé factuel (GEO), JSON-LD par page ;
+  `/robots.txt` (robots IA autorisés), `/sitemap.xml`, `/llms.txt`, `static/og.png`.
+  `SITE_URL` fixe l'adresse canonique. Tests : `tests/test_seo.py`.
+
 ## Conventions
 - Code et noms en anglais, commentaires, docs et interface en français.
 - Type hints, dataclasses ; chaque fonction a au moins un test ; les tests n'appellent

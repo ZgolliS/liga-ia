@@ -2,31 +2,34 @@
 {% from "_macros.html" import crest %}
 {% block title %}Classement{% endblock %}
 {% block content %}
-<span class="kicker">Saison en cours</span>
-<h1 class="page-title">Classement <span class="gradient-text">Liga</span></h1>
-<p class="page-sub">Mis à jour automatiquement après chaque journée.</p>
-
-<section class="card table-scroll reveal">
-  {% set leader = standings[0].points if standings else 1 %}
-  <table class="table">
-    <thead>
-      <tr><th>#</th><th>Équipe</th><th title="Matchs joués">J</th><th title="Gagnés">G</th><th title="Nuls">N</th><th title="Perdus">P</th><th class="hide-sm" title="Buts pour">BP</th><th class="hide-sm" title="Buts contre">BC</th><th title="Différence de buts">Diff</th><th>Pts</th><th class="hide-sm">Écart</th></tr>
-    </thead>
-    <tbody>
-    {% for s in standings %}
-      <tr class="{% if s.position <= 4 %}zone-ucl{% elif s.position >= 18 %}zone-down{% endif %}">
-        <td><span class="pos">{{ s.position }}</span></td>
-        <td><a class="team-cell" href="/equipe/{{ s.team_id }}">{{ crest(s.crest) }} {{ s.team }}</a></td>
-        <td class="muted">{{ s.played }}</td><td>{{ s.won }}</td><td>{{ s.draw }}</td><td>{{ s.lost }}</td>
-        <td class="hide-sm">{{ s.goals_for }}</td><td class="hide-sm">{{ s.goals_against }}</td>
-        <td>{{ '%+d' % s.goal_diff if s.goal_diff else 0 }}</td><td class="pts">{{ s.points }}</td>
-        <td class="hide-sm"><div class="bar" title="{{ s.points }} pts sur {{ leader }}"><i style="width: {{ (100 * s.points / leader) | round | int if leader else 0 }}%"></i></div></td>
-      </tr>
-    {% else %}
-      <tr><td colspan="11" class="muted">Classement en cours de chargement…</td></tr>
-    {% endfor %}
-    </tbody>
-  </table>
-  <p class="legend"><span><span class="sw ucl"></span>Ligue des champions (1 à 4)</span><span><span class="sw down"></span>Relégation (18 à 20)</span></p>
+<section class="band band--violet">
+  <div class="wrap">
+    <header class="page-head">
+      <span class="label">Liga {{ season }}</span>
+      <h1 class="wide" data-reveal>Classement</h1>
+      {% if meta.summary %}<p class="summary" style="border-color: #fff; color: inherit" data-reveal>{{ meta.summary }}</p>{% endif %}
+    </header>
+    <div class="table-scroll" data-reveal>
+      <table class="table">
+        <thead>
+          <tr><th>#</th><th>Équipe</th><th class="num" title="Matchs joués">J</th><th class="num" title="Gagnés">G</th><th class="num" title="Nuls">N</th><th class="num" title="Perdus">P</th><th class="num hide-sm" title="Buts pour">BP</th><th class="num hide-sm" title="Buts contre">BC</th><th class="num" title="Différence de buts">Diff</th><th class="num">Pts</th></tr>
+        </thead>
+        <tbody>
+        {% for s in standings %}
+          <tr class="{% if s.position <= 4 %}zone-ucl{% elif s.position >= 18 %}zone-down{% endif %}">
+            <td><span class="pos">{{ s.position }}</span></td>
+            <td><a class="team-cell" href="/equipe/{{ s.team_id }}">{{ crest(s.crest) }} {{ s.team }}</a></td>
+            <td class="num">{{ s.played }}</td><td class="num">{{ s.won }}</td><td class="num">{{ s.draw }}</td><td class="num">{{ s.lost }}</td>
+            <td class="num hide-sm">{{ s.goals_for }}</td><td class="num hide-sm">{{ s.goals_against }}</td>
+            <td class="num">{{ '%+d' % s.goal_diff if s.goal_diff else 0 }}</td><td class="num pts">{{ s.points }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="10">Classement en cours de chargement…</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="legend"><span><span class="sw ucl"></span>Ligue des champions (1 à 4)</span><span><span class="sw down" style="background:#08090e"></span>Relégation (18 à 20)</span></p>
+  </div>
 </section>
 {% endblock %}

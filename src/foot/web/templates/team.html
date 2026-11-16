@@ -2,57 +2,65 @@
 {% from "_macros.html" import crest, face, match_row, rumor_card, news_list %}
 {% block title %}{{ team.short_name or team.name }}{% endblock %}
 {% block content %}
-<header class="profile reveal" {% if team.crest %}style="--bg-img: url('{{ team.crest }}')"{% endif %}>
-  {% if team.crest %}<img class="profile-crest" src="{{ team.crest }}" alt="" width="110" height="110" onerror="this.remove()">{% endif %}
-  <div>
-    <span class="kicker">Club de Liga</span>
-    <h1>{{ team.name }}</h1>
-    <div class="chips">
-      {% if team.standing %}
-      <span class="chip"><b>{{ team.standing.position }}{{ 'er' if team.standing.position == 1 else 'e' }}</b> au classement</span>
-      <span class="chip"><b>{{ team.standing.points }}</b> pts</span>
-      <span class="chip"><b>{{ team.standing.won }}</b>V · <b>{{ team.standing.draw }}</b>N · <b>{{ team.standing.lost }}</b>D</span>
-      {% endif %}
-      {% if team.coach %}<span class="chip">Entraîneur : <b>{{ team.coach }}</b></span>{% endif %}
+<section class="band band--ink">
+  <div class="wrap">
+    <header class="page-head team-head">
+      {% if team.crest %}<img class="team-crest" src="{{ team.crest }}" alt="Blason de {{ team.name }}" width="140" height="140" onerror="this.remove()">{% endif %}
+      <div>
+        <span class="label muted">Club de Liga</span>
+        <h1 class="wide" data-reveal>{{ team.short_name or team.name }}</h1>
+        <div class="chips">
+          {% if team.standing %}
+          <span class="chip"><b>{{ team.standing.position }}{{ 'er' if team.standing.position == 1 else 'e' }}</b> au classement</span>
+          <span class="chip"><b>{{ team.standing.points }}</b> pts</span>
+          <span class="chip"><b>{{ team.standing.won }}</b>V · <b>{{ team.standing.draw }}</b>N · <b>{{ team.standing.lost }}</b>D</span>
+          {% endif %}
+          {% if team.coach %}<span class="chip">Entraîneur : <b>{{ team.coach }}</b></span>{% endif %}
+        </div>
+        {% if meta.summary %}<p class="summary" data-reveal>{{ meta.summary }}</p>{% endif %}
+      </div>
+    </header>
+    <div class="rail">
+      <div class="panel" data-reveal>
+        <h2>Derniers matchs</h2>
+        <ul class="matches">{% for m in team.last_matches %}{{ match_row(m) }}{% else %}<li class="muted">—</li>{% endfor %}</ul>
+      </div>
+      <div class="panel" data-reveal>
+        <h2>Prochains matchs</h2>
+        <ul class="matches">{% for m in team.next_matches %}{{ match_row(m) }}{% else %}<li class="muted">—</li>{% endfor %}</ul>
+      </div>
     </div>
   </div>
-</header>
-
-<div class="grid">
-  <section class="card reveal">
-    <h2>Derniers matchs</h2>
-    <ul class="matches">{% for m in team.last_matches %}{{ match_row(m) }}{% else %}<li class="muted">—</li>{% endfor %}</ul>
-  </section>
-  <section class="card reveal">
-    <h2>Prochains matchs</h2>
-    <ul class="matches">{% for m in team.next_matches %}{{ match_row(m) }}{% else %}<li class="muted">—</li>{% endfor %}</ul>
-  </section>
-</div>
+</section>
 
 {% if team.rumors %}
-<section class="section">
-  <div class="section-head"><div><span class="kicker">Mercato</span><h2>Rumeurs autour du club</h2></div></div>
-  <div class="rumors">{% for r in team.rumors %}{{ rumor_card(r) }}{% endfor %}</div>
+<section class="band band--red" aria-labelledby="t-mercato">
+  <div class="wrap">
+    <div class="band-head"><h2 class="band-title wide" id="t-mercato" data-reveal><span class="brush">autour du club</span>Mercato</h2></div>
+    <div class="rumors">{% for r in team.rumors %}{{ rumor_card(r) }}{% endfor %}</div>
+  </div>
 </section>
 {% endif %}
 
-<section class="section">
-  <div class="card table-scroll reveal">
-    <h2>Effectif · {{ team.squad | length }} joueurs</h2>
-    <table class="table">
-      <thead><tr><th>Joueur</th><th>Poste</th><th>Âge</th><th class="hide-sm">Nationalité</th></tr></thead>
-      <tbody>
-      {% for p in team.squad %}
-        <tr><td><a class="team-cell" href="/joueur/{{ p.id }}">{{ face(p.photo_url, p.name, 34) }} {{ p.name }}</a></td><td class="muted">{{ p.position | position }}</td><td>{{ p.age or '—' }}</td><td class="hide-sm muted">{{ p.nationality or '—' }}</td></tr>
-      {% endfor %}
-      </tbody>
-    </table>
+<section class="band band--violet" aria-labelledby="t-effectif">
+  <div class="wrap">
+    <div class="band-head"><h2 class="band-title wide" id="t-effectif" data-reveal><span class="brush">{{ team.squad | length }} joueurs</span>Effectif</h2></div>
+    <div class="table-scroll" data-reveal>
+      <table class="table">
+        <thead><tr><th>Joueur</th><th>Poste</th><th class="num">Âge</th><th class="hide-sm">Nationalité</th></tr></thead>
+        <tbody>
+        {% for p in team.squad %}
+          <tr><td><a class="team-cell" href="/joueur/{{ p.id }}">{{ face(p.photo_url, p.name, 34) }} {{ p.name }}</a></td><td>{{ p.position | position }}</td><td class="num">{{ p.age or '—' }}</td><td class="hide-sm">{{ p.nationality or '—' }}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </div>
 </section>
 
-<section class="section">
-  <div class="card reveal">
-    <h2>Actus</h2>
+<section class="band band--ink2" aria-labelledby="t-actus">
+  <div class="wrap">
+    <div class="band-head"><h2 class="band-title wide" id="t-actus" data-reveal><span class="brush">le fil</span>Actus</h2></div>
     {{ news_list(team.news) }}
   </div>
 </section>
