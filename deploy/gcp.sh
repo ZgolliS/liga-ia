@@ -117,30 +117,50 @@ done
 
 # Jeton Wikimedia (OPTIONNEL, gratuit) : photos des joueurs moins limitées par Wikimedia.
 JOB_SECRETS="FOOTBALL_DATA_TOKEN=FOOTBALL_DATA_TOKEN:latest,LLM_API_KEY=LLM_API_KEY:latest"
-wikimedia_user() {  # nom du compte si le jeton est valide, vide sinon
-  curl -s -H "Authorization: Bearer $1" -A "LigaIA/0.1 (https://github.com/ZgolliS/liga-ia)" \
-    "https://www.wikidata.org/w/api.php?action=query&meta=userinfo&format=json" |
-    python3 -c "import json,sys; u=json.load(sys.stdin).get('query',{}).get('userinfo',{}); print('' if 'anon' in u else u.get('name',''))" 2>/dev/null || true
+wikimedia_check() {  # "OK:<compte>" si Wikimedia reconnaît le jeton, sinon "KO:<raison>"
+  local out code
+  out="$(curl -s -w '\n%{http_code}' -H "Authorization: Bearer $1" \
+    -A "LigaIA/0.1 (https://github.com/ZgolliS/liga-ia)" \
+    "https://www.wikidata.org/w/api.php?action=query&meta=userinfo&format=json" || true)"
+  code="${out##*$'\n'}"
+  out="${out%$'\n'*}"
+  printf '%s' "$out" | CODE="$code" python3 -c '
+import json, os, sys
+code = os.environ["CODE"]
+try:
+    d = json.load(sys.stdin)
+except Exception:
+    hint = " : Wikimedia limite les requêtes, réessaie dans une minute" if code == "429" else ""
+    print("KO:réponse illisible (HTTP " + code + ")" + hint); sys.exit()
+if "error" in d:
+    e = d["error"]; print("KO:" + str(e.get("code", "?")) + " - " + str(e.get("info", ""))[:150]); sys.exit()
+u = d.get("query", {}).get("userinfo", {})
+print("KO:jeton non reconnu (vu comme un visiteur anonyme)" if "anon" in u else "OK:" + u.get("name", ""))
+' 2>/dev/null || echo "KO:vérification impossible"
 }
 if gcloud secrets versions list WIKIMEDIA_TOKEN --filter "state=ENABLED" --limit 1 \
      --format "value(name)" 2>/dev/null | grep -q .; then
   echo "  WIKIMEDIA_TOKEN : déjà enregistré"
 else
-  read -rsp "  (Optionnel) Colle ton jeton Wikimedia, ou Entrée pour passer : " value; echo
-  value="${value//[[:space:]]/}"
-  if [[ -n "$value" ]]; then
-    who="$(wikimedia_user "$value")"
-    if [[ -n "$who" ]]; then
+  for attempt in 1 2 3; do
+    read -rsp "  (Optionnel) Colle ton jeton Wikimedia (Access token), ou Entrée pour passer : " value
+    echo
+    value="${value//[[:space:]]/}"
+    if [[ -z "$value" ]]; then
+      echo "  Pas de jeton Wikimedia : les photos arriveront plus lentement."
+      break
+    fi
+    echo "  Jeton reçu (${#value} caractères), vérification auprès de Wikimedia…"
+    result="$(wikimedia_check "$value")"
+    if [[ "$result" == OK:* ]]; then
       gcloud secrets describe WIKIMEDIA_TOKEN >/dev/null 2>&1 ||
         gcloud secrets create WIKIMEDIA_TOKEN --replication-policy automatic >/dev/null
       printf '%s' "$value" | gcloud secrets versions add WIKIMEDIA_TOKEN --data-file=- >/dev/null
-      echo "  WIKIMEDIA_TOKEN : accepté (compte $who) ✅"
-    else
-      echo "  ⚠️ Jeton Wikimedia refusé : ignoré (les photos arriveront plus lentement)."
+      echo "  WIKIMEDIA_TOKEN : accepté (compte ${result#OK:}) ✅"
+      break
     fi
-  else
-    echo "  Pas de jeton Wikimedia : les photos arriveront plus lentement."
-  fi
+    echo "  ⚠️ Jeton refusé : ${result#KO:} (essai $attempt sur 3)"
+  done
   unset value
 fi
 if gcloud secrets versions list WIKIMEDIA_TOKEN --filter "state=ENABLED" --limit 1 \
