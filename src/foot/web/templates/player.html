@@ -1,19 +1,41 @@
 {% extends "base.html" %}
-{% from "_macros.html" import rumor_card, news_list %}
+{% from "_macros.html" import crest, rumor_card, news_list %}
 {% block title %}{{ player.name }}{% endblock %}
 {% block content %}
-<header class="profile reveal">
-  <div class="avatar" aria-hidden="true">{{ player.name[:1] }}</div>
-  <div>
+<section class="player-hero reveal" {% if player.photo_url %}style="--bg-img: url('{{ player.photo_url }}')"{% endif %}>
+  <figure class="photo-card">
+    {% if player.photo_url %}
+    <img src="{{ player.photo_url }}" alt="Photo de {{ player.name }}" onerror="this.closest('.photo-card').classList.add('no-photo'); this.remove()">
+    {% else %}
+    <span class="photo-ph" aria-hidden="true">{{ player.name[:1] }}</span>
+    {% endif %}
+    {% if player.team_crest %}<img class="photo-crest" src="{{ player.team_crest }}" alt="" onerror="this.remove()">{% endif %}
+    {% if player.photo_url and player.photo_page %}
+    <figcaption class="credit">
+      Photo : {{ player.photo_author or 'auteur inconnu' }}{% if player.photo_license %} · {{ player.photo_license }}{% endif %} ·
+      <a href="{{ player.photo_page }}" target="_blank" rel="noopener">Wikimedia Commons</a>
+    </figcaption>
+    {% endif %}
+  </figure>
+
+  <div class="player-info">
     <span class="kicker">{{ player.position | position }}</span>
     <h1>{{ player.name }}</h1>
-    <div class="chips">
-      {% if player.team %}<a class="chip" href="/equipe/{{ player.team_id }}"><b>{{ player.team }}</b></a>{% endif %}
-      {% if player.age %}<span class="chip"><b>{{ player.age }}</b> ans</span>{% endif %}
-      {% if player.nationality %}<span class="chip">{{ player.nationality }}</span>{% endif %}
-    </div>
+    {% if player.team %}<a class="player-team" href="/equipe/{{ player.team_id }}">{{ crest(player.team_crest, '', 28) }} {{ player.team }}</a>{% endif %}
+
+    <dl class="stat-grid">
+      <div><dt>Âge</dt><dd>{{ player.age or '—' }}{% if player.age %}<small> ans</small>{% endif %}</dd></div>
+      <div><dt>Taille</dt><dd>{% if player.height_cm %}{{ '%.2f' % (player.height_cm / 100) }}<small> m</small>{% else %}—{% endif %}</dd></div>
+      <div><dt>Poste</dt><dd class="dd-text">{{ player.position | position }}</dd></div>
+      <div><dt>Pied fort</dt><dd class="dd-text">{{ player.foot or '—' }}</dd></div>
+      <div><dt>Nationalité</dt><dd class="dd-text">{{ player.nationality or '—' }}</dd></div>
+      <div><dt>Né à</dt><dd class="dd-text">{{ player.birth_place or '—' }}</dd></div>
+      <div><dt>Dans l'actu</dt><dd>{{ player.news_count }}<small> articles</small></dd></div>
+      <div><dt>Rumeurs</dt><dd>{{ player.rumors | length }}</dd></div>
+    </dl>
+    <p class="legend">Buts, passes et cartons arrivent dans une prochaine version.</p>
   </div>
-</header>
+</section>
 
 <section class="section">
   <div class="section-head"><div><span class="kicker">Mercato</span><h2>Rumeurs de transfert</h2></div></div>

@@ -28,6 +28,8 @@ log = logging.getLogger("liga.job")
 MARGIN_S = 60  # le job passe toutes les 15 min : petite marge pour ne pas rater l'heure
 # Articles analysés par l'IA à chaque passage : passages courts, le reste au suivant.
 LLM_ARTICLES_PER_RUN = int(os.environ.get("LLM_ARTICLES_PER_RUN", "60"))
+# Joueurs enrichis (photo, taille…) à chaque passage : 522 joueurs couverts en ~2 h.
+WIKIDATA_PLAYERS_PER_RUN = int(os.environ.get("WIKIDATA_PLAYERS_PER_RUN", "60"))
 
 
 def liga_due(conn, now: datetime | None = None) -> bool:
@@ -43,7 +45,7 @@ def liga_due(conn, now: datetime | None = None) -> bool:
 
 
 def run_job(storage: Storage, workdir: Path, football_client=None, llm=None, embedder=None,
-            now: datetime | None = None) -> Counter:
+            now: datetime | None = None, wikimedia=None) -> Counter:
     workdir.mkdir(parents=True, exist_ok=True)
     db_path = workdir / DB_NAME
     db_path.unlink(missing_ok=True)
@@ -68,6 +70,14 @@ def run_job(storage: Storage, workdir: Path, football_client=None, llm=None, emb
             except Exception:
                 log.exception("Analyse des rumeurs en échec : on publie quand même")
                 stats["rumeurs en erreur"] += 1
+        if wikimedia is not None:  # photos et infos des joueurs (gratuit)
+            from foot.wikidata import enrich_players
+
+            try:
+                stats += enrich_players(conn, wikimedia, limit=WIKIDATA_PLAYERS_PER_RUN)
+            except Exception:
+                log.exception("Photos des joueurs en échec : on publie quand même")
+                stats["photos en erreur"] += 1
         with conn:
             stats["bronze purgé"] += prune_raw(conn)
 
@@ -106,8 +116,14 @@ def main() -> None:
 
         embedder = FastEmbedEmbedder()
 
+    wikimedia = None
+    if os.environ.get("ENABLE_WIKIDATA", "1") == "1":
+        from foot.wikidata import WikimediaClient
+
+        wikimedia = WikimediaClient()  # utilise WIKIMEDIA_TOKEN s'il est défini
+
     stats = run_job(open_storage(url), Path(os.environ.get("WORK_DIR", "/tmp/liga")),
-                    football, llm, embedder)
+                    football, llm, embedder, wikimedia=wikimedia)
     log.info("Job terminé : %s", dict(stats))
     if stats["matchs en erreur"]:
         raise SystemExit(1)  # données publiées, mais l'échec reste visible dans Cloud Run

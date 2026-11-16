@@ -90,7 +90,7 @@ def team(conn: sqlite3.Connection, team_id: int) -> dict | None:
     if row is None:
         return None
     standing = next((s for s in standings(conn) if s["team_id"] == team_id), None)
-    squad = conn.execute("""SELECT id, name, position, nationality, date_of_birth
+    squad = conn.execute("""SELECT id, name, position, nationality, date_of_birth, photo_url
                             FROM players WHERE team_id = ? ORDER BY position, name""",
                          (team_id,)).fetchall()
     return {
@@ -105,7 +105,7 @@ def team(conn: sqlite3.Connection, team_id: int) -> dict | None:
 
 
 def player(conn: sqlite3.Connection, player_id: int) -> dict | None:
-    row = conn.execute("""SELECT p.*, t.short_name AS team, t.id AS team_id
+    row = conn.execute("""SELECT p.*, t.short_name AS team, t.id AS team_id, t.crest_url AS team_crest
                           FROM players p LEFT JOIN teams t ON t.id = p.team_id
                           WHERE p.id = ?""", (player_id,)).fetchone()
     if row is None:
@@ -114,6 +114,13 @@ def player(conn: sqlite3.Connection, player_id: int) -> dict | None:
         "id": row["id"], "name": row["name"], "position": row["position"],
         "nationality": row["nationality"], "date_of_birth": row["date_of_birth"],
         "age": age(row["date_of_birth"]), "team": row["team"], "team_id": row["team_id"],
+        "team_crest": row["team_crest"],
+        "photo_url": row["photo_url"], "photo_author": row["photo_author"],
+        "photo_license": row["photo_license"], "photo_page": row["photo_page"],
+        "height_cm": row["height_cm"], "birth_place": row["birth_place"], "foot": row["foot"],
+        "news_count": conn.execute("""SELECT COUNT(*) FROM news_mentions
+                                      WHERE entity_type = 'player' AND entity_id = ?""",
+                                   (player_id,)).fetchone()[0],
         "rumors": rumors(conn, player_id=player_id),
         "news": news(conn, player_id=player_id, limit=8),
     }
@@ -130,7 +137,19 @@ def rumors(conn: sqlite3.Connection, player_id: int | None = None,
             "SELECT id FROM players WHERE team_id = (SELECT id FROM teams WHERE name = ?)",
             (team_name,))}
         board = [r for r in board if r.to_team == team_name or r.player_id in ids]
-    return [_rumor(r) for r in board[:limit]]
+    board = board[:limit]
+    photos = player_photos(conn, [r.player_id for r in board if r.player_id])
+    return [_rumor(r, photos.get(r.player_id)) for r in board]
+
+
+def player_photos(conn: sqlite3.Connection, ids: list[int]) -> dict[int, str]:
+    """Photos des joueurs demandés (ceux qui en ont une), en une seule requête."""
+    if not ids:
+        return {}
+    marks = ",".join("?" for _ in ids)
+    return {r["id"]: r["photo_url"] for r in conn.execute(
+        f"SELECT id, photo_url FROM players WHERE id IN ({marks}) AND photo_url IS NOT NULL",
+        ids)}
 
 
 def news(conn: sqlite3.Connection, player_id: int | None = None, team_id: int | None = None,
@@ -191,8 +210,9 @@ def site_stats(conn: sqlite3.Connection) -> dict:
     }
 
 
-def _rumor(r: Rumor) -> dict:
+def _rumor(r: Rumor, photo_url: str | None = None) -> dict:
     return {"player": r.player, "player_id": r.player_id, "to_team": r.to_team,
+            "photo_url": photo_url,
             "label": str(r.verdict.label), "kind": LABEL_KIND[r.verdict.label],
             "score": r.verdict.score, "confidence": confidence(r.verdict.label, r.verdict.score),
             "explanation": r.verdict.explain(), "articles": r.articles}

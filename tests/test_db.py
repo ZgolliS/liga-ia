@@ -81,3 +81,23 @@ def test_invalid_card_type_is_rejected(conn) -> None:
 def test_upsert_rejects_sql_injection_in_names(conn) -> None:
     with pytest.raises(ValueError):
         upsert(conn, "teams; DROP TABLE teams", {"fd_id": 1}, {"name": "x"})
+
+
+def test_migration_adds_columns_to_an_existing_database(tmp_path) -> None:
+    """Cas réel : la base de production existait avant les colonnes « photo »."""
+    from foot.db import MIGRATIONS, migrate
+
+    path = tmp_path / "ancienne.db"
+    old = sqlite3.connect(path)  # base créée par une ancienne version, avec un joueur
+    old.execute("CREATE TABLE players (id INTEGER PRIMARY KEY, fd_id INTEGER UNIQUE, af_id "
+                "INTEGER UNIQUE, name TEXT NOT NULL, position TEXT, nationality TEXT, "
+                "date_of_birth TEXT, team_id INTEGER, updated_at TEXT NOT NULL)")
+    old.execute("INSERT INTO players (fd_id, name, updated_at) VALUES (1, 'Pedri', 'x')")
+    old.commit()
+    old.close()
+
+    conn = connect(path)  # applique schéma + migrations
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(players)")}
+    assert {c for _, c, _ in MIGRATIONS} <= cols
+    assert conn.execute("SELECT name FROM players").fetchone()["name"] == "Pedri"  # rien perdu
+    assert migrate(conn) == []  # relancer ne fait rien

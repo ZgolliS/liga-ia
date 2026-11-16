@@ -118,3 +118,16 @@ def test_llm_work_is_capped_per_run(tmp_path, monkeypatch) -> None:
     run_job(LocalStorage(tmp_path / "bucket"), tmp_path / "work", FakeClient(), llm=CountingLLM())
     db = sqlite3.connect(tmp_path / "bucket" / "foot.db")
     assert db.execute("SELECT COUNT(*) FROM news_processing").fetchone()[0] <= 1
+
+
+def test_job_adds_player_photos_and_survives_wikimedia_errors(tmp_path, monkeypatch) -> None:
+    from foot.wikidata import WikimediaClient
+    from tests.test_wikidata import fake_wikimedia
+
+    # Faux Wikimedia qui refuse tout (429) : le job publie quand même la base.
+    # (créé AVANT fake_rss, qui remplace httpx.Client pour tout le programme)
+    blocked = WikimediaClient(http=fake_wikimedia([], rate_limit_after=0), pause_s=0)
+    fake_rss(monkeypatch)
+    bucket = LocalStorage(tmp_path / "bucket")
+    stats = run_job(bucket, tmp_path / "w1", FakeClient(), wikimedia=blocked)
+    assert stats["wikimedia limité"] >= 1 and bucket.version("foot.db") is not None

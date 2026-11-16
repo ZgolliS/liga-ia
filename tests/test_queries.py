@@ -88,3 +88,17 @@ def test_site_stats(conn) -> None:
 def test_rumor_dict_has_kind_and_confidence(conn) -> None:
     r = queries.rumors(conn)[0]
     assert r["kind"] == "rumeur" and 35 <= r["confidence"] <= 65
+
+
+def test_player_photo_and_facts_reach_pages(conn) -> None:
+    pid = queries.find_players(conn, "Unai Simón")[0]["id"]
+    conn.execute("UPDATE players SET photo_url = 'https://upload.wikimedia.org/p.jpg', "
+                 "photo_author = 'Jean Photo', photo_license = 'CC BY-SA 4.0', height_cm = 190, "
+                 "birth_place = 'Murgia', foot = 'pied droit' WHERE id = ?", (pid,))
+    p = queries.player(conn, pid)
+    assert (p["photo_url"], p["height_cm"], p["birth_place"]) == (
+        "https://upload.wikimedia.org/p.jpg", 190, "Murgia")
+    assert p["news_count"] == 1
+    assert p["rumors"][0]["photo_url"] == "https://upload.wikimedia.org/p.jpg"
+    team = queries.team(conn, queries.find_teams(conn, "Athletic Club")[0]["id"])
+    assert any(m["photo_url"] for m in team["squad"])

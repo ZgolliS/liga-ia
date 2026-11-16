@@ -76,7 +76,16 @@ site, puis planifie la collecte. On peut le relancer pour publier une nouvelle v
 | `CHAT_PER_MINUTE`, `CHAT_PER_DAY` | non | limites du chat (6 par minute et par visiteur, 400 par jour) |
 | `DB_PATH` | non | emplacement de la base SQLite (mode local) |
 | `STORAGE_URL` | Cloud | `gs://bucket` : le job y dépose la base, le site la lit |
+| `WIKIMEDIA_TOKEN` | non | jeton Wikimedia gratuit : photos des joueurs moins limitées par Wikimedia |
+| `ENABLE_WIKIDATA` | non | `0` = pas de photos ni d'infos joueurs depuis Wikidata |
 | `ENABLE_SEMANTIC_SEARCH` | non | `0` = recherche des actus par mots-clés (moins de mémoire) |
+
+## Photos des joueurs
+
+Les photos viennent de **Wikimedia Commons** (licences libres) via **Wikidata**, avec
+l'auteur et la licence affichés sous chaque photo. Le bon joueur est identifié par sa
+**date de naissance** (pas d'homonyme). Une photo sans auteur ni licence connus n'est
+jamais affichée. Le job enrichit 60 joueurs par passage, les plus cités d'abord.
 
 ## Limites connues
 

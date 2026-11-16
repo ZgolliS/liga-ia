@@ -115,6 +115,39 @@ for name in FOOTBALL_DATA_TOKEN LLM_API_KEY; do
   fi
 done
 
+# Jeton Wikimedia (OPTIONNEL, gratuit) : photos des joueurs moins limitées par Wikimedia.
+JOB_SECRETS="FOOTBALL_DATA_TOKEN=FOOTBALL_DATA_TOKEN:latest,LLM_API_KEY=LLM_API_KEY:latest"
+wikimedia_user() {  # nom du compte si le jeton est valide, vide sinon
+  curl -s -H "Authorization: Bearer $1" -A "LigaIA/0.1 (https://github.com/ZgolliS/liga-ia)" \
+    "https://www.wikidata.org/w/api.php?action=query&meta=userinfo&format=json" |
+    python3 -c "import json,sys; u=json.load(sys.stdin).get('query',{}).get('userinfo',{}); print('' if 'anon' in u else u.get('name',''))" 2>/dev/null || true
+}
+if gcloud secrets versions list WIKIMEDIA_TOKEN --filter "state=ENABLED" --limit 1 \
+     --format "value(name)" 2>/dev/null | grep -q .; then
+  echo "  WIKIMEDIA_TOKEN : déjà enregistré"
+else
+  read -rsp "  (Optionnel) Colle ton jeton Wikimedia, ou Entrée pour passer : " value; echo
+  value="${value//[[:space:]]/}"
+  if [[ -n "$value" ]]; then
+    who="$(wikimedia_user "$value")"
+    if [[ -n "$who" ]]; then
+      gcloud secrets describe WIKIMEDIA_TOKEN >/dev/null 2>&1 ||
+        gcloud secrets create WIKIMEDIA_TOKEN --replication-policy automatic >/dev/null
+      printf '%s' "$value" | gcloud secrets versions add WIKIMEDIA_TOKEN --data-file=- >/dev/null
+      echo "  WIKIMEDIA_TOKEN : accepté (compte $who) ✅"
+    else
+      echo "  ⚠️ Jeton Wikimedia refusé : ignoré (les photos arriveront plus lentement)."
+    fi
+  else
+    echo "  Pas de jeton Wikimedia : les photos arriveront plus lentement."
+  fi
+  unset value
+fi
+if gcloud secrets versions list WIKIMEDIA_TOKEN --filter "state=ENABLED" --limit 1 \
+     --format "value(name)" 2>/dev/null | grep -q .; then
+  JOB_SECRETS="$JOB_SECRETS,WIKIMEDIA_TOKEN=WIKIMEDIA_TOKEN:latest"
+fi
+
 step "5/8 Compte de service avec le minimum de droits"
 if ! gcloud iam service-accounts describe "$SA" >/dev/null 2>&1; then
   gcloud iam service-accounts create "$SA_NAME" --display-name "Liga IA"
@@ -122,7 +155,8 @@ if ! gcloud iam service-accounts describe "$SA" >/dev/null 2>&1; then
 fi
 gcloud storage buckets add-iam-policy-binding "gs://$BUCKET" \
   --member "serviceAccount:$SA" --role roles/storage.objectAdmin >/dev/null
-for name in FOOTBALL_DATA_TOKEN LLM_API_KEY; do
+for name in FOOTBALL_DATA_TOKEN LLM_API_KEY WIKIMEDIA_TOKEN; do
+  gcloud secrets describe "$name" >/dev/null 2>&1 || continue  # le jeton Wikimedia est optionnel
   gcloud secrets add-iam-policy-binding "$name" \
     --member "serviceAccount:$SA" --role roles/secretmanager.secretAccessor >/dev/null
 done
@@ -138,7 +172,7 @@ step "7/8 Job de collecte + premier remplissage de la base"
 gcloud run jobs deploy "$JOB" --image "$IMAGE" --region "$REGION" \
   --service-account "$SA" --command python --args=-m,foot.job \
   --set-env-vars "STORAGE_URL=gs://$BUCKET" \
-  --set-secrets "FOOTBALL_DATA_TOKEN=FOOTBALL_DATA_TOKEN:latest,LLM_API_KEY=LLM_API_KEY:latest" \
+  --set-secrets "$JOB_SECRETS" \
   --memory 1Gi --cpu 1 --task-timeout 30m --max-retries 0
 if ! gcloud storage objects describe "gs://$BUCKET/foot.db" >/dev/null 2>&1; then
   echo "  Premier remplissage : l'IA analyse tous les articles (5 à 10 min)…"

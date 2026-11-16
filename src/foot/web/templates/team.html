@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import crest, match_row, rumor_card, news_list %}
+{% from "_macros.html" import crest, face, match_row, rumor_card, news_list %}
 {% block title %}{{ team.short_name or team.name }}{% endblock %}
 {% block content %}
 <header class="profile reveal" {% if team.crest %}style="--bg-img: url('{{ team.crest }}')"{% endif %}>
@@ -43,7 +43,7 @@
       <thead><tr><th>Joueur</th><th>Poste</th><th>Âge</th><th class="hide-sm">Nationalité</th></tr></thead>
       <tbody>
       {% for p in team.squad %}
-        <tr><td><a class="team-cell" href="/joueur/{{ p.id }}">{{ p.name }}</a></td><td class="muted">{{ p.position | position }}</td><td>{{ p.age or '—' }}</td><td class="hide-sm muted">{{ p.nationality or '—' }}</td></tr>
+        <tr><td><a class="team-cell" href="/joueur/{{ p.id }}">{{ face(p.photo_url, p.name, 34) }} {{ p.name }}</a></td><td class="muted">{{ p.position | position }}</td><td>{{ p.age or '—' }}</td><td class="hide-sm muted">{{ p.nationality or '—' }}</td></tr>
       {% endfor %}
       </tbody>
     </table>

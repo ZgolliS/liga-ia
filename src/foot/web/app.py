@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import threading
 import time
 from collections import defaultdict, deque
@@ -293,7 +294,10 @@ def chat(body: ChatRequest, request: Request, db=Depends(get_db)):
         store = state.news_store
     bot = Chatbot(db, state.llm, news_store=store, embedder=state.embedder)
     answer = bot.ask(body.message, [t.model_dump() for t in body.history])
-    return {"answer": answer.text, "tools": answer.tools_used}
+    # Les joueurs cités avec un lien vers leur fiche : on renvoie leur photo pour la bulle.
+    ids = [int(x) for x in re.findall(r"\(/joueur/(\d+)\)", answer.text)][:10]
+    faces = {f"/joueur/{pid}": url for pid, url in queries.player_photos(db, ids).items()}
+    return {"answer": answer.text, "tools": answer.tools_used, "faces": faces}
 
 
 @app.get("/api/status")

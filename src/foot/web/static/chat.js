@@ -37,11 +37,24 @@
     return blocks.join("");
   }
 
-  function add(role, content, extra = "") {
+  function add(role, content, extra = "", faces = {}) {
     const div = document.createElement("div");
     div.className = `msg ${role} ${extra}`.trim();
-    if (role === "bot") div.innerHTML = render(content);
-    else div.textContent = content;
+    if (role === "bot") {
+      div.innerHTML = render(content);
+      // Tête du joueur devant chaque lien vers sa fiche (photos Wikimedia uniquement).
+      div.querySelectorAll('a[href^="/joueur/"]').forEach((a) => {
+        const url = faces[a.getAttribute("href")];
+        if (typeof url === "string" && url.startsWith("https://upload.wikimedia.org/")) {
+          const img = document.createElement("img");
+          img.className = "face";
+          img.src = url;
+          img.alt = "";
+          img.onerror = () => img.remove();
+          a.prepend(img);
+        }
+      });
+    } else div.textContent = content;
     log.appendChild(div);
     log.scrollTop = log.scrollHeight;
     return div;
@@ -67,7 +80,7 @@
       const data = await res.json().catch(() => ({}));
       const answer = res.ok ? data.answer : (data.detail || "Une erreur est survenue, réessaie.");
       typing.remove();
-      add("bot", answer);
+      add("bot", answer, "", (res.ok && data.faces) || {});
       if (res.ok) history.push({ role: "user", content: question }, { role: "assistant", content: answer });
     } catch {
       typing.remove();

@@ -1,3 +1,9 @@
+{% macro face(url, name, size=36) -%}
+  {# Tête ronde du joueur (photo libre Wikimedia), ou ses initiales s'il n'y en a pas #}
+  {# Si la photo ne charge pas, on la cache et on montre l'initiale (aucune donnée dans le JS) #}
+  {% if url %}<img class="face" src="{{ url }}" alt="" loading="lazy" width="{{ size }}" height="{{ size }}" style="--s:{{ size }}px" onerror="this.hidden=true;this.nextElementSibling.hidden=false">{% endif %}<span class="face face-ph" style="--s:{{ size }}px" aria-hidden="true" {% if url %}hidden{% endif %}>{{ (name or '?')[:1] }}</span>
+{%- endmacro %}
+
 {% macro crest(url, alt="", size=26) -%}
   {% if url %}<img class="crest" src="{{ url }}" alt="{{ alt }}" loading="lazy" width="{{ size }}" height="{{ size }}" style="width:{{ size }}px;height:{{ size }}px" onerror="this.style.visibility='hidden'">{% else %}<span class="crest-ph"></span>{% endif %}
 {%- endmacro %}
@@ -17,7 +23,7 @@
     <div class="gauge" style="--p: {{ r.confidence }}" role="img" aria-label="Indice de confiance : {{ r.confidence }} sur 100"><span>{{ r.confidence }}</span></div>
     <div>
       <span class="badge">{{ r.label }}</span>
-      <h3>{% if r.player_id %}<a href="/joueur/{{ r.player_id }}">{{ r.player }}</a>{% else %}{{ r.player }}{% endif %}
+      <h3>{% if r.player_id %}<a class="who" href="/joueur/{{ r.player_id }}">{{ face(r.photo_url, r.player, 30) }}{{ r.player }}</a>{% else %}{{ r.player }}{% endif %}
         <span class="arrow">→</span> {{ r.to_team }}</h3>
     </div>
   </div>

@@ -40,9 +40,36 @@ def connect(path: Path | str = DEFAULT_DB_PATH, apply_schema: bool = True) -> sq
         conn.execute("PRAGMA journal_mode=WAL")
     if apply_schema:
         conn.executescript(SCHEMA_PATH.read_text(encoding="utf-8"))
+        migrate(conn)
     else:
         conn.execute("PRAGMA foreign_keys = ON")
     return conn
+
+
+# Colonnes ajoutées après la première mise en production. "CREATE TABLE IF NOT EXISTS"
+# ne modifie pas une table qui existe déjà : on les ajoute une par une si elles manquent.
+MIGRATIONS: list[tuple[str, str, str]] = [
+    ("players", "wikidata_id", "TEXT"),
+    ("players", "photo_url", "TEXT"),
+    ("players", "photo_author", "TEXT"),
+    ("players", "photo_license", "TEXT"),
+    ("players", "photo_page", "TEXT"),
+    ("players", "height_cm", "INTEGER"),
+    ("players", "birth_place", "TEXT"),
+    ("players", "foot", "TEXT"),
+    ("players", "wikidata_checked_at", "TEXT"),
+]
+
+
+def migrate(conn: sqlite3.Connection) -> list[str]:
+    """Ajoute les colonnes manquantes sans toucher aux données. Retourne ce qui a été ajouté."""
+    added = []
+    for table, column, sql_type in MIGRATIONS:
+        if column not in _columns(conn, table):
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {sql_type}")
+            added.append(f"{table}.{column}")
+    conn.commit()
+    return added
 
 
 def connect_readonly(path: Path | str) -> sqlite3.Connection:

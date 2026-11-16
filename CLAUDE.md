@@ -46,6 +46,11 @@ Médaillon : bronze (`raw_payloads` : réponses brutes des API, RSS et IA) -> ar
 - `job.py` : job Cloud Run (récupère la base, collecte, purge le bronze, index, renvoie).
 - `storage.py` : `STORAGE_URL` gs:// ou dossier local ; `snapshot_db` ; `prune_raw`
   (3 dernières réponses brutes par source, sauf l'IA) ; `StorageMirror` pour le site.
+- `wikidata.py` : photos (Commons) + taille, lieu de naissance, pied fort (Wikidata).
+  Joueur identifié par sa DATE DE NAISSANCE. Photo affichée seulement avec auteur et
+  licence. Wikimedia limite fort les requêtes anonymes du cloud (429) : `WIKIMEDIA_TOKEN`
+  (gratuit) recommandé ; arrêt propre et reprise au passage suivant.
+- `db.py` `MIGRATIONS` : colonnes ajoutées après la mise en production (ALTER TABLE).
 - `web/` : `app.py` (pages, `/api/chat` limité par visiteur et par jour, `/api/status`),
   `templates/`, `static/` (CSS clair/sombre, `chat.js` avec rendu Markdown échappé).
 

@@ -123,3 +123,37 @@ def test_cloud_mode_reads_database_from_storage(tmp_path, monkeypatch) -> None:
         bucket.upload(snapshot_db(job_db, tmp_path / "snap2.db"), "foot.db")
         assert web.state.mirror.refresh() is True
         assert "Los Blancos" in c.get("/classement").text
+
+
+def test_player_page_shows_photo_and_credit(client) -> None:
+    conn = connect(web.DB_PATH)
+    conn.execute("UPDATE players SET photo_url = 'https://upload.wikimedia.org/x.jpg', "
+                 "photo_author = 'Jean <b>Photo</b>', photo_license = 'CC BY-SA 4.0', "
+                 "photo_page = 'https://commons.wikimedia.org/wiki/File:X.jpg', height_cm = 190 "
+                 "WHERE id = 1")
+    conn.commit()
+    html = client.get("/joueur/1").text
+    assert 'src="https://upload.wikimedia.org/x.jpg"' in html
+    assert "Jean &lt;b&gt;Photo&lt;/b&gt;" in html  # le texte venant de l'extérieur est échappé
+    assert "CC BY-SA 4.0" in html and "1.90" in html
+    assert "Wikimedia Commons" in html
+
+
+def test_player_without_photo_shows_initial(client) -> None:
+    html = client.get("/joueur/2").text
+    assert "photo-ph" in html
+
+
+def test_chat_returns_faces_of_linked_players(client) -> None:
+    conn = connect(web.DB_PATH)
+    conn.execute("UPDATE players SET photo_url = 'https://upload.wikimedia.org/x.jpg' WHERE id = 1")
+    conn.commit()
+    from tests.test_chatbot import call
+
+    # L'IA consulte la fiche du joueur (l'outil fournit le lien /joueur/1), puis répond.
+    web.state.llm = ScriptedLLM([
+        call("joueur", nom="Unai Simón"),
+        {"role": "assistant", "content": "Voir [Unai Simón](/joueur/1)."}])
+    data = client.post("/api/chat", json={"message": "Unai Simón ?"}).json()
+    assert "[Unai Simón](/joueur/1)" in data["answer"]
+    assert data["faces"] == {"/joueur/1": "https://upload.wikimedia.org/x.jpg"}
